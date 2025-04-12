@@ -17,6 +17,10 @@ Bienvenue dans la partie Frontend du projet ArborGen ! Ici, on ne rigole pas (en
 *   **Algorithmes de RO :** Trouver le plus court chemin entre deux membres, l'arbre couvrant minimal de la famille, etc. (La partie "sérieuse" du projet).
 *   **(Plus Tard™️)** Authentification, gestion de comptes multiples (pour que chaque famille ait son jardin secret).
 
+### Quelques Captures :
+![Capture 1](screens/1.png)
+![Capture 2](screens/2.png)
+
 ## 🛠️ La Stack Technologique (Le Meilleur du Meilleur, Modestement)
 
 *   **React (v18+) :** Parce que les composants, c'est la vie. Et les hooks, n'en parlons pas.
