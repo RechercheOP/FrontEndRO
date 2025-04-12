@@ -1,11 +1,47 @@
 @import "tailwindcss";
-/*@tailwind base;*/
-/*@tailwind components;*/
-/*@tailwind utilities;*/
 
+@layer base {
+    :root {
+        /* Définir les couleurs de base comme variables CSS si vous préférez */
+        /* --background: 0 0% 100%;
+        --foreground: 240 10% 3.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 240 10% 3.9%; */
+        /* ... etc pour toutes les couleurs définies dans tailwind.config.js */
 
-/* Vous pouvez ajouter ici des styles globaux personnalisés si nécessaire, */
-/* par exemple, des styles de base pour body, ou des imports de polices */
-/* body {
-    @apply bg-base-100 text-base-content; /* Exemple si vous définissez des couleurs de base dans le thème */
-/* } */
+        --radius: 0.5rem; /* Variable pour border-radius */
+        --header-height: 4rem; /* Hauteur du header pour calculs comme sticky sidebar/graph height */
+    }
+
+    /* Vous pouvez définir un mode sombre ici avec .dark */
+    /* .dark { ... } */
+
+    * {
+    }
+
+    body {
+        font-feature-settings: "rlig" 1, "calt" 1; /* Ligatures standard */
+        /* Considérer d'ajouter une police plus "Apple-like" comme Inter ou San Francisco (si licence permet) */
+        /* @apply font-sans; (si vous configurez une police personnalisée dans tailwind.config.js) */
+    }
+}
+
+/* Styles spécifiques pour la scrollbar (optionnel, style moderne) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: hsl(240 4.8% 95.9% / 0.5); /* muted/50 */
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+    background: hsl(240 5.9% 90%); /* border */
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: hsl(240 3.8% 46.1%); /* muted-foreground */
+}
+canvas{
+    min-height: 500px;
+}
