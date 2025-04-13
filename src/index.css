@@ -45,3 +45,25 @@
 canvas{
     min-height: 500px;
 }
+
+input{
+    outline: none;
+
+}
+input:focus {
+    outline: none;
+    box-shadow: none;
+    border-color: inherit; /* Optionnel - conserve la couleur de bordure normale */
+}
+select:focus {
+    outline: none;
+    box-shadow: none;
+    border-color: inherit; /* Optionnel - conserve la couleur de bordure normale */
+}
+select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: none;
+    padding-right: 1.5rem; /* Espace pour icône personnalisée */
+}

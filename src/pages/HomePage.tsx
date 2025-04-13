@@ -7,6 +7,7 @@ const HomePage = () => {
     // État pour gérer le membre sélectionné
     const [selectedMember, setSelectedMember] = useState<any>(null);
 
+
     const familyMembers = [
         {
             id: 1,
@@ -185,48 +186,26 @@ const HomePage = () => {
     };
 
     return (
-        <div className="space-y-6 relative z-0">
+        <div className="relative z-0 flex flex-col" style={{ minHeight: 'calc(100vh - 6rem)' }}>
             {/* Cercles décoratifs en arrière-plan */}
             <div className="fixed -top-40 -left-40 w-96 h-96 bg-gray-100 rounded-full opacity-30 blur-3xl"></div>
             <div className="fixed bottom-60 right-10 w-80 h-80 bg-gray-200 rounded-full opacity-30 blur-3xl"></div>
 
-            {/* Mini-tutoriel en bas avec design repensé */}
-            <div className="mb-3 flex flex-wrap items-center justify-center gap-6">
-                <motion.div
-                    className="flex items-center text-gray-600 text-sm bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100"
-                    whileHover={{ scale: 1.05, backgroundColor: "#F9FAFB" }}
-                >
-                    <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center mr-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" />
-                        </svg>
-                    </div>
-                    <span>Cliquez pour sélectionner</span>
-                </motion.div>
-                <motion.div
-                    className="flex items-center text-gray-600 text-sm bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100"
-                    whileHover={{ scale: 1.05, backgroundColor: "#F9FAFB" }}
-                >
-                    <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center mr-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                    </div>
-                    <span>Glissez pour déplacer</span>
-                </motion.div>
+            {/* Conteneur principal avec flex-grow pour occuper l'espace disponible */}
+            <div className="flex-grow flex flex-col">
+                {/* Visualisation de l'arbre - maintenant responsive */}
+                <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm overflow-hidden backdrop-blur-sm flex-grow">
+                    <FamilyTree
+                        members={familyMembers}
+                        relations={familyRelations}
+                        onSelectMember={handleSelectMember}
+                    />
+                </div>
+
+                {/* Espace en bas si nécessaire */}
+                <div className="h-0"></div>
             </div>
 
-            {/* Visualisation de l'arbre */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 relative min-h-[650px] shadow-sm overflow-hidden backdrop-blur-sm">
-                {/* Intégration du composant FamilyTree */}
-                <FamilyTree
-                    members={familyMembers}
-                    relations={familyRelations}
-                    onSelectMember={handleSelectMember}
-                />
-            </div>
-
-            {/* Utilisation du composant MemberDetailModal */}
             <MemberDetailModal
                 selectedMember={selectedMember}
                 onClose={() => setSelectedMember(null)}

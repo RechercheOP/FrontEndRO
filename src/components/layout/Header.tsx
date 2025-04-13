@@ -10,7 +10,7 @@ const Header = ({ toggleSidebar, isSidebarCollapsed }: HeaderProps) => {
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
     return (
-        <header className="z-20 bg-white border-b border-gray-100 sticky top-0 backdrop-blur-lg bg-white/90">
+        <header className="z-20 h-16 bg-white border-b border-gray-100 sticky top-0 backdrop-blur-lg bg-white/90">
             <div className="px-4 py-3 flex justify-between items-center">
                 <div className="flex items-center space-x-4">
                     {/* Bouton pour rétracter/étendre la sidebar */}

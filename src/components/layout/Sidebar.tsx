@@ -1,231 +1,220 @@
-import { useState } from 'react';
+// src/components/layout/Sidebar.tsx
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import AddMemberModal from "../genealogy/AddMemberForm.tsx";
 
 interface SidebarProps {
     isCollapsed: boolean;
+    toggleSidebar: () => void; // Fonction pour changer l'état collapsed (vient du parent)
+    // On pourrait passer les membres existants ici pour la modal
+    existingMembers?: { id: number | string; name: string }[];
 }
 
-const Sidebar = ({ isCollapsed }: SidebarProps) => {
+// Données statiques pour la démo (tu les remplaceras par des données réelles)
+const familyStats = {
+    totalMembers: 12, // Mise à jour
+    generations: 4,   // Mise à jour
+    lastUpdate: "12 mai 2025"
+};
+
+const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, existingMembers = [] }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [isAddingMember, setIsAddingMember] = useState(false);
-    const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
-        birthDate: '',
-        relationType: 'parent',
-        relatedMember: ''
-    });
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-    // Données statiques pour la démo
-    const familyStats = {
-        totalMembers: 10,
-        generations: 3,
-        oldestMember: "Jean Dupont (1932)",
-        lastUpdate: "10 avril 2025"
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchTerm(e.target.value);
+        // Ici tu implémenteras la logique de recherche (filtrer l'arbre, etc.)
+        console.log("Searching for:", e.target.value);
     };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData({
-            ...formData,
-            [name]: value
-        });
+    const handleOpenAddModal = () => {
+        setIsAddModalOpen(true);
     };
 
-    const handleAddNewMember = () => {
-        // Logique pour ajouter un membre
-        console.log("Adding new member:", formData);
-        setIsAddingMember(false);
+    const handleCloseAddModal = () => {
+        setIsAddModalOpen(false);
     };
 
-    if (isCollapsed) {
-        return (
-            <div className="h-full py-4 flex flex-col items-center">
-                <div className="flex flex-col space-y-6 items-center">
-                    <button className="p-3 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </button>
-                    <button className="p-3 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                    </button>
-                    <button className="p-3 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    const handleAddMemberSubmit = (formData: any) => {
+        console.log('Simulating adding member from Sidebar:', formData);
+        // Logique d'ajout réelle à implémenter ici (appel API via service)
+        // Pourrait nécessiter de rafraîchir les données de l'arbre généalogique
+    };
+
+    // Variante pour l'animation de la sidebar
+    const sidebarVariants = {
+        open: { width: 320, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 30 } },
+        collapsed: { width: 80, opacity: 1, transition: { type: 'spring', stiffness: 300, damping: 30 } }
+    };
+
+    const contentVariants = {
+        open: { opacity: 1, x: 0, transition: { delay: 0.1, duration: 0.2 } },
+        collapsed: { opacity: 0, x: -20, transition: { duration: 0.1 } }
+    };
+
+    const iconVariants = {
+        open: { opacity: 0, scale: 0.5, transition: { duration: 0.1 } },
+        collapsed: { opacity: 1, scale: 1, transition: { delay: 0.1, duration: 0.2 } }
+    };
+
 
     return (
-        <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-            {/* Section recherche */}
-            <div className="p-4 border-b border-gray-100">
-                <div className="relative">
-                    <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Rechercher un membre..."
-                        className="w-full bg-white border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-gray-800 placeholder-gray-400 focus:outline-none  focus:border-transparent transition-all text-sm"
-                    />
-                    <div className="absolute left-3 top-2.5 text-gray-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                </div>
-            </div>
+        <>
+            <motion.div
+                className={`fixed top-30 left-0  rounded-xl z-0 flex ml-1.5`} // Utilisation de flex pour le positionnement interne
+                initial={false}
+                animate={isCollapsed ? "collapsed" : "open"}
+                variants={sidebarVariants}
+            >
+                {/* Conteneur réel du panneau avec padding et styles */}
+                <div className="h-full rounded-xl w-full bg-black text-gray-100 flex flex-col p-4 pt-6 shadow-lg"> {/* Ajuste le padding si besoin */}
 
-            {/* Section ajout de membre */}
-            <div className="p-4 border-b border-gray-100">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-base font-semibold text-gray-800">Ajouter un membre</h2>
+                    {/* Bouton pour réduire/agrandir */}
                     <button
-                        onClick={() => setIsAddingMember(!isAddingMember)}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center ${isAddingMember ? 'bg-gray-200 text-gray-600' : 'bg-black text-white'} transition-colors`}
+                        onClick={toggleSidebar}
+                        className="absolute top-4 right-0 translate-x-1/2 p-2 bg-gray-800 text-gray-300 hover:bg-black hover:text-white rounded-full shadow-md z-50 transition-all"
+                        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                     >
-                        {isAddingMember ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                        )}
-                    </button>
-                </div>
-
-                {isAddingMember ? (
-                    <div className="space-y-3">
-                        <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Prénom</label>
-                            <input
-                                type="text"
-                                name="firstName"
-                                value={formData.firstName}
-                                onChange={handleInputChange}
-                                placeholder="Prénom"
-                                className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 text-gray-800 placeholder-gray-400 text-sm focus:outline-none  focus:border-transparent"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Nom</label>
-                            <input
-                                type="text"
-                                name="lastName"
-                                value={formData.lastName}
-                                onChange={handleInputChange}
-                                placeholder="Nom"
-                                className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 text-gray-800 placeholder-gray-400 text-sm focus:outline-none  focus:border-transparent"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Date de naissance</label>
-                            <input
-                                type="date"
-                                name="birthDate"
-                                value={formData.birthDate}
-                                onChange={handleInputChange}
-                                className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 text-gray-800 text-sm focus:outline-none  focus:border-transparent"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Type de relation</label>
-                            <select
-                                name="relationType"
-                                value={formData.relationType}
-                                onChange={handleInputChange}
-                                className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 text-gray-800 text-sm focus:outline-none  focus:border-transparent"
-                            >
-                                <option value="parent">Parent</option>
-                                <option value="spouse">Conjoint</option>
-                                <option value="sibling">Frère/Sœur</option>
-                                <option value="child">Enfant</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">Membre existant lié</label>
-                            <select
-                                name="relatedMember"
-                                value={formData.relatedMember}
-                                onChange={handleInputChange}
-                                className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 text-gray-800 text-sm focus:outline-none  focus:border-transparent"
-                            >
-                                <option value="">Sélectionner un membre</option>
-                                <option value="1">Jean Dupont</option>
-                                <option value="2">Marie Martin</option>
-                                <option value="3">Pierre Dupont</option>
-                            </select>
-                        </div>
-                        <button
-                            onClick={handleAddNewMember}
-                            className="w-full bg-black text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-gray-800 transition-all mt-2"
+                        <motion.svg
+                            xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                            animate={{ rotate: isCollapsed ? 180 : 0 }}
+                            transition={{ duration: 0.3 }}
                         >
-                            Ajouter le membre
-                        </button>
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-4 text-center space-y-3">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                            </svg>
-                        </div>
-                        <p className="text-gray-600 text-xs">
-                            Cliquez sur le bouton + pour ajouter un nouveau membre à votre arbre généalogique
-                        </p>
-                    </div>
-                )}
-            </div>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                        </motion.svg>
+                    </button>
 
-            {/* Section statistiques */}
-            <div className="p-4">
-                <h2 className="text-base font-semibold text-gray-800 mb-4">Statistiques familiales</h2>
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl">
-                        <div className="flex items-center">
-                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                </svg>
-                            </div>
-                            <span className="ml-3 text-sm text-gray-700">Membres</span>
-                        </div>
-                        <span className="text-base font-semibold text-gray-900">{familyStats.totalMembers}</span>
-                    </div>
 
-                    <div className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl">
-                        <div className="flex items-center">
-                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    {/* Contenu conditionnel (complètement différent si replié) */}
+                    {isCollapsed ? (
+                        // --- VUE RÉDUITE ---
+                        <motion.div
+                            className="flex flex-col items-center space-y-6 mt-10" // Ajout de marge sup
+                            variants={iconVariants}
+                            initial="open" // Start as if it was open to transition correctly
+                            animate="collapsed"
+                            exit="open"
+                        >
+                            {/* Icône Recherche */}
+                            <button className="p-3 rounded-xl bg-gray-700 hover:bg-gray-600 transition-colors" title="Rechercher">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
+                            </button>
+                            {/* Icône Ajouter Membre */}
+                            <button onClick={handleOpenAddModal} className="p-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 transition-colors" title="Ajouter un membre">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                            </button>
+                            {/* Icône Statistiques (optionnel) */}
+                            <button className="p-3 rounded-xl bg-gray-700 hover:bg-gray-600 transition-colors" title="Statistiques">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                            </button>
+                        </motion.div>
+                    ) : (
+                        // --- VUE COMPLÈTE ---
+                        <motion.div
+                            className="flex flex-col h-full overflow-hidden" // Empêche le débordement pendant l'anim
+                            variants={contentVariants}
+                            initial="collapsed" // Start as if it was collapsed
+                            animate="open"
+                            exit="collapsed"
+                        >
+                            {/* Section Titre/Logo (Optionnel) */}
+                            <div className="mb-6 flex items-center justify-between">
+                                <h1 className="text-xl font-bold text-white">Mon Arbre</h1>
+                                {/* <img src="/logo.svg" alt="Logo" className="h-8"/> */}
                             </div>
-                            <span className="ml-3 text-sm text-gray-700">Générations</span>
-                        </div>
-                        <span className="text-base font-semibold text-gray-900">{familyStats.generations}</span>
-                    </div>
 
-                    <div className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl">
-                        <div className="flex items-center">
-                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
+                            {/* Section Recherche */}
+                            <div className="mb-6 relative">
+                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </span>
+                                <input
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={handleSearchChange}
+                                    placeholder="Rechercher un membre..."
+                                    className="w-full bg-gray-200 border border-gray-700 rounded-xl py-2.5 pl-10 pr-4 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm"
+                                />
                             </div>
-                            <span className="ml-3 text-sm text-gray-700">Dernière mise à jour</span>
-                        </div>
-                        <span className="text-xs font-medium text-gray-900">{familyStats.lastUpdate}</span>
-                    </div>
+
+                            {/* Section Ajout de membre */}
+                            <div className="mb-6">
+                                <motion.button
+                                    onClick={handleOpenAddModal}
+                                    className="w-full flex items-center justify-center bg-white text-black py-3 px-4 rounded-xl text-sm font-medium hover:bg-gray-800 hover:text-white transition-colors"
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Ajouter un membre
+                                </motion.button>
+                            </div>
+
+                            {/* Section Statistiques (redesign sombre) */}
+                            <div className="mt-auto pt-6 border-t border-gray-700"> {/* Poussé vers le bas */}
+                                <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">Aperçu</h2>
+                                <div className="space-y-3">
+                                    {/* Stat Item 1 */}
+                                    <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+                                        <div className="flex items-center">
+                                            <div className="p-1.5 bg-gray-700 rounded-md mr-3">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                                </svg>
+                                            </div>
+                                            <span className="text-sm text-gray-300">Membres</span>
+                                        </div>
+                                        <span className="text-sm font-semibold text-white">{familyStats.totalMembers}</span>
+                                    </div>
+                                    {/* Stat Item 2 */}
+                                    <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+                                        <div className="flex items-center">
+                                            <div className="p-1.5 bg-gray-700 rounded-md mr-3">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                            </div>
+                                            <span className="text-sm text-gray-300">Générations</span>
+                                        </div>
+                                        <span className="text-sm font-semibold text-white">{familyStats.generations}</span>
+                                    </div>
+                                    {/* Stat Item 3 */}
+                                    <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+                                        <div className="flex items-center">
+                                            <div className="p-1.5 bg-gray-700 rounded-md mr-3">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                            <span className="text-sm text-gray-300">Mis à jour</span>
+                                        </div>
+                                        <span className="text-xs font-medium text-gray-400">{familyStats.lastUpdate}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
                 </div>
-            </div>
-        </div>
+            </motion.div>
+
+            {/* Rendu de la Modal */}
+            <AddMemberModal
+                isOpen={isAddModalOpen}
+                onClose={handleCloseAddModal}
+                onSubmit={handleAddMemberSubmit}
+                existingMembers={existingMembers} // Passer les membres existants ici
+            />
+        </>
     );
 };
 
