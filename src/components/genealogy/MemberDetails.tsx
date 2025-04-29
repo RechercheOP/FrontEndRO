@@ -1,218 +1,405 @@
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FC } from 'react';
-
-// Définition des types
-interface Relation {
-    type: string;
-    name: string;
-}
+import { Member } from '../../services/memberService';
+import { Relation } from '../../services/relationService';
+import { useFamily } from '../../contexts/FamilyContext'; // Assurez-vous que ce chemin est correct
 
 interface MemberDetailModalProps {
-    selectedMember: {
-        id: number;
-        name: string;
-        birthDate: string;
-        birthPlace: string;
-        deathDate: string;
-        occupation: string;
-        bio: string;
-        photoUrl: string;
-        relations: Relation[];
-    } | null;
+    selectedMember: Member | null;
     onClose: () => void;
 }
 
-const MemberDetailModal: FC<MemberDetailModalProps> = ({ selectedMember, onClose }) => {
-    if (!selectedMember) return null;
+const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
+                                                                 selectedMember,
+                                                                 onClose
+                                                             }) => {
+    const { members, relations } = useFamily(); // Récupère les données du contexte FamilyContext
+    const [activeTab, setActiveTab] = useState<'info' | 'relations'>('info');
+    const [memberWithRelations, setMemberWithRelations] = useState<any>(null);
+
+    useEffect(() => {
+        if (!selectedMember || !members || !relations) return;
+
+        try {
+            // On cherche toutes les relations réelles
+            const parents: Member[] = [];
+            const children: Member[] = [];
+            const spouses: Member[] = [];
+            const siblings: Member[] = [];
+
+            // Parents = tous ceux qui ont une relation parent vers ce membre
+            relations.forEach(rel => {
+                if (rel.type === 'parent' && Number(rel.targetId) === Number(selectedMember.id)) {
+                    const parent = members.find(m => Number(m.id) === Number(rel.sourceId));
+                    if (parent && !parents.some(p => Number(p.id) === Number(parent.id))) {
+                        parents.push(parent);
+                    }
+                }
+            });
+
+            // Enfants = tous ceux qui ont une relation parent depuis ce membre
+            relations.forEach(rel => {
+                if (rel.type === 'parent' && Number(rel.sourceId) === Number(selectedMember.id)) {
+                    const child = members.find(m => Number(m.id) === Number(rel.targetId));
+                    if (child && !children.some(c => Number(c.id) === Number(child.id))) {
+                        children.push(child);
+                    }
+                }
+            });
+
+            // Conjoints = tous ceux qui ont une relation spouse (dans les deux sens)
+            relations.forEach(rel => {
+                if (rel.type === 'spouse' &&
+                    (Number(rel.sourceId) === Number(selectedMember.id) || Number(rel.targetId) === Number(selectedMember.id))) {
+                    const spouseId = Number(rel.sourceId) === Number(selectedMember.id) ? Number(rel.targetId) : Number(rel.sourceId);
+                    const spouse = members.find(m => Number(m.id) === spouseId);
+                    if (spouse && !spouses.some(s => Number(s.id) === Number(spouse.id))) {
+                        spouses.push(spouse);
+                    }
+                }
+            });
+
+            // Frères/sœurs = tous ceux qui partagent au moins un parent avec le membre, excluant lui-même
+            if (parents.length > 0) {
+                const parentIds = parents.map(p => Number(p.id));
+                members.forEach(potentialSibling => {
+                    // Ne pas s'inclure soi-même
+                    if (Number(potentialSibling.id) === Number(selectedMember.id)) return;
+
+                    // Vérifier si ce membre a au moins un parent en commun
+                    const siblingParents = relations
+                        .filter(rel => rel.type === 'parent' && Number(rel.targetId) === Number(potentialSibling.id))
+                        .map(rel => Number(rel.sourceId));
+
+                    const hasCommonParent = siblingParents.some(parentId => parentIds.includes(parentId));
+
+                    if (hasCommonParent && !siblings.some(s => Number(s.id) === Number(potentialSibling.id))) {
+                        siblings.push(potentialSibling);
+                    }
+                });
+            }
+
+            setMemberWithRelations({
+                ...selectedMember,
+                relations: {
+                    parents,
+                    children,
+                    siblings,
+                    spouses
+                }
+            });
+        } catch (error) {
+            console.error("Erreur lors du chargement des relations:", error);
+            // Fallback en cas d'erreur
+            setMemberWithRelations({
+                ...selectedMember,
+                relations: {
+                    parents: [],
+                    children: [],
+                    siblings: [],
+                    spouses: []
+                }
+            });
+        }
+    }, [selectedMember, members, relations]);
+
+    if (!selectedMember || !memberWithRelations) {
+        return null;
+    }
+
+    // Extraction des données
+    const fullName = `${selectedMember.firstName || ''} ${selectedMember.lastName || ''}`.trim();
+    const birthDate = selectedMember.birthDate ? new Date(selectedMember.birthDate).toLocaleDateString() : 'Inconnue';
+    const deathDate = selectedMember.deathDate ? new Date(selectedMember.deathDate).toLocaleDateString() : '';
+    const age = calculateAge(selectedMember.birthDate, selectedMember.deathDate);
+
+    // Fonction pour calculer l'âge
+    function calculateAge(birthDateStr: string | null, deathDateStr: string | null): string {
+        if (!birthDateStr) return 'Inconnu';
+        try {
+            const birthDate = new Date(birthDateStr);
+            const endDate = deathDateStr ? new Date(deathDateStr) : new Date();
+            let age = endDate.getFullYear() - birthDate.getFullYear();
+            const monthDiff = endDate.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && endDate.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            return age.toString();
+        } catch (e) {
+            console.error("Erreur de calcul d'âge:", e);
+            return 'Inconnu';
+        }
+    }
+
+    const modalVariants = {
+        hidden: { opacity: 0, scale: 0.9 },
+        visible: { opacity: 1, scale: 1 },
+        exit: { opacity: 0, scale: 0.9 }
+    };
+
+    const backdropVariants = {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1 },
+        exit: { opacity: 0 }
+    };
+
+    // Fonction de rendu pour un membre dans les relations
+    const renderMemberCard = (member: Member, relation: string) => (
+        <div key={member.id} className="flex items-center bg-gray-50 rounded-lg border border-gray-100 p-3 hover:bg-gray-100 transition-colors">
+            <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 mr-3">
+                {member.photoUrl ? (
+                    <img
+                        src={member.photoUrl}
+                        alt={`${member.firstName}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                            // Fallback pour les images qui ne chargent pas
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png';
+                        }}
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 font-medium">
+                        {member.firstName ? member.firstName.charAt(0) : ''}
+                        {member.lastName ? member.lastName.charAt(0) : ''}
+                    </div>
+                )}
+            </div>
+            <div>
+                <div className="font-medium">{member.firstName} {member.lastName}</div>
+                <div className="text-xs text-gray-500">{relation}</div>
+            </div>
+        </div>
+    );
 
     return (
         <AnimatePresence>
-            {selectedMember && (
+            <motion.div
+                className="fixed inset-0 z-50 flex items-center justify-center"
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+            >
+                {/* Backdrop */}
                 <motion.div
-                    className="fixed inset-0 bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                    variants={backdropVariants}
+                    onClick={onClose}
+                />
+
+                {/* Modal Content */}
+                <motion.div
+                    className="relative z-10 bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden mx-4 max-h-[80vh] flex flex-col"
+                    variants={modalVariants}
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 >
-                    <motion.div
-                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden"
-                    >
-                        <div className="relative h-35 bg-gray-900 overflow-hidden">
-                            <div className="absolute inset-0 opacity-20" style={{
-                                backgroundImage: `url(${selectedMember.photoUrl})`,
-                                backgroundSize: 'cover',
-                                backgroundPosition: 'center',
-                                filter: 'grayscale(100%) blur(4px)'
-                            }}></div>
-                            <div className="absolute top-4 right-4 flex gap-2">
-                                <motion.button
-                                    className="p-2 bg-white bg-opacity-10 backdrop-blur-md rounded-full text-white hover:bg-opacity-20 transition-all"
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
-                                </motion.button>
-                                <motion.button
-                                    onClick={onClose}
-                                    className="p-2 bg-white bg-opacity-10 backdrop-blur-md rounded-full text-white hover:bg-opacity-20 transition-all"
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </motion.button>
-                            </div>
-                            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black to-transparent opacity-70"></div>
-                            <div className="absolute bottom-6 left-6 flex items-end">
-                                <div className="w-20 h-20 rounded-full border-2 border-white overflow-hidden shadow-lg">
+                    {/* Header with background and profile pic */}
+                    <div className="h-40 bg-gray-100 relative">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                        <div className="absolute -bottom-12 left-8">
+                            <div className="w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white">
+                                {selectedMember.photoUrl ? (
                                     <img
                                         src={selectedMember.photoUrl}
-                                        alt={selectedMember.name}
+                                        alt={fullName}
                                         className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            // Fallback pour les images qui ne chargent pas
+                                            const target = e.target as HTMLImageElement;
+                                            target.onerror = null;
+                                            target.src = 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png';
+                                        }}
                                     />
-                                </div>
-                                <div className="ml-4">
-                                    <motion.h2
-                                        className="text-2xl font-bold text-white"
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.2 }}
-                                    >
-                                        {selectedMember.name}
-                                    </motion.h2>
-                                    <motion.p
-                                        className="text-white text-opacity-80"
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.3 }}
-                                    >
-                                        {selectedMember.occupation}
-                                    </motion.p>
-                                </div>
+                                ) : (
+                                    <div
+                                        className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 font-medium text-2xl">
+                                        {selectedMember.firstName ? selectedMember.firstName.charAt(0) : ''}
+                                        {selectedMember.lastName ? selectedMember.lastName.charAt(0) : ''}
+                                    </div>
+                                )}
                             </div>
                         </div>
+                        <div className="absolute bottom-4 left-36 right-4 text-white">
+                            <h2 className="text-2xl font-bold">{fullName}</h2>
+                            <p className="text-sm opacity-90">
+                                {selectedMember.birthDate && (
+                                    <>
+                                        {birthDate}
+                                        {selectedMember.deathDate && <> — {deathDate}</>}
+                                        {age && <> • {age} ans</>}
+                                    </>
+                                )}
+                            </p>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="absolute top-4 right-4 bg-black/30 text-white p-1.5 rounded-full hover:bg-black/50 transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                                 stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
 
-                        {/* Contenu du profil  */}
-                        <div className="p-6 max-h-[60vh] overflow-y-auto">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Informations principales */}
-                                <div className="space-y-6">
-                                    <motion.div
-                                        className="bg-gray-50 rounded-xl p-5 border border-gray-100 shadow-sm"
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.2 }}
-                                    >
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations personnelles</h3>
-                                        <div className="space-y-4">
-                                            <div className="flex justify-between border-b border-gray-100 pb-2">
-                                                <span className="text-gray-500">Date de naissance</span>
-                                                <span className="font-medium text-gray-900">{selectedMember.birthDate || 'Inconnue'}</span>
+                    {/* Tabs navigation */}
+                    <div className="px-8 pt-16 border-b border-gray-200">
+                        <nav className="flex space-x-8">
+                            <button
+                                onClick={() => setActiveTab('info')}
+                                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                                    activeTab === 'info'
+                                        ? 'border-black text-black'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                } transition-colors`}
+                            >
+                                Informations
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('relations')}
+                                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                                    activeTab === 'relations'
+                                        ? 'border-black text-black'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                } transition-colors`}
+                            >
+                                Relations familiales
+                            </button>
+                        </nav>
+                    </div>
+
+                    {/* Tab Content - avec défilement */}
+                    <div className="p-8 overflow-y-auto flex-grow">
+                        {activeTab === 'info' ? (
+                            <div className="space-y-6">
+                                {/* Personal Information */}
+                                <div>
+                                    <h3 className="text-lg font-medium text-gray-900 mb-3">Informations personnelles</h3>
+                                    <div className="bg-gray-50 rounded-lg border border-gray-100 p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <div className="text-xs text-gray-500">Date de naissance</div>
+                                            <div className="font-medium">{birthDate}</div>
+                                        </div>
+                                        {selectedMember.birthPlace && (
+                                            <div>
+                                                <div className="text-xs text-gray-500">Lieu de naissance</div>
+                                                <div className="font-medium">{selectedMember.birthPlace}</div>
                                             </div>
-                                            <div className="flex justify-between border-b border-gray-100 pb-2">
-                                                <span className="text-gray-500">Lieu de naissance</span>
-                                                <span className="font-medium text-gray-900">{selectedMember.birthPlace || 'Inconnu'}</span>
+                                        )}
+                                        {selectedMember.deathDate && (
+                                            <div>
+                                                <div className="text-xs text-gray-500">Date de décès</div>
+                                                <div className="font-medium">{deathDate}</div>
                                             </div>
-                                            <div className="flex justify-between border-b border-gray-100 pb-2">
-                                                <span className="text-gray-500">Date de décès</span>
-                                                <span className="font-medium text-gray-900">{selectedMember.deathDate || '-'}</span>
+                                        )}
+                                        {selectedMember.occupation && (
+                                            <div>
+                                                <div className="text-xs text-gray-500">Profession</div>
+                                                <div className="font-medium">{selectedMember.occupation}</div>
                                             </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500">Profession</span>
-                                                <span className="font-medium text-gray-900">{selectedMember.occupation || 'Inconnue'}</span>
+                                        )}
+                                        <div>
+                                            <div className="text-xs text-gray-500">Genre</div>
+                                            <div className="font-medium">
+                                                {selectedMember.gender === 'male' ? 'Homme' :
+                                                    selectedMember.gender === 'female' ? 'Femme' : 'Autre'}
                                             </div>
                                         </div>
-                                    </motion.div>
-
-                                    <motion.div
-                                        className="bg-gray-50 rounded-xl p-5 border border-gray-100 shadow-sm"
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.3 }}
-                                    >
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Biographie</h3>
-                                        <p className="text-gray-700 leading-relaxed">
-                                            {selectedMember.bio || 'Aucune information biographique disponible.'}
-                                        </p>
-                                    </motion.div>
+                                    </div>
+                                </div>
+                                {selectedMember.bio && (
+                                    <div>
+                                        <h3 className="text-lg font-medium text-gray-900 mb-3">Biographie</h3>
+                                        <div className="bg-gray-50 rounded-lg border border-gray-100 p-4">
+                                            <p className="text-gray-700 whitespace-pre-line">{selectedMember.bio}</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                {/* Parents */}
+                                <div>
+                                    <h3 className="text-lg font-medium text-gray-900 mb-3">Parents</h3>
+                                    {memberWithRelations.relations.parents && memberWithRelations.relations.parents.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {memberWithRelations.relations.parents.map((parent: Member) =>
+                                                renderMemberCard(parent, parent.gender === 'female' ? 'Mère' :
+                                                    parent.gender === 'male' ? 'Père' : 'Parent')
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="bg-gray-50 rounded-lg border border-gray-100 p-4 text-center text-gray-500">
+                                            Aucun parent enregistré
+                                        </div>
+                                    )}
                                 </div>
 
-                                {/* Relations */}
-                                <div className="space-y-6">
-                                    <motion.div
-                                        className="bg-gray-50 rounded-xl p-5 border border-gray-100 shadow-sm"
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.4 }}
-                                    >
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Relations familiales</h3>
-                                        <div className="space-y-4">
-                                            {selectedMember.relations.map((relation: Relation, index: number) => (
-                                                <motion.div
-                                                    key={index}
-                                                    className="flex items-center p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-                                                    initial={{ opacity: 0, x: -10 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ delay: 0.1 * index }}
-                                                    whileHover={{ scale: 1.02 }}
-                                                >
-                                                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                        </svg>
-                                                    </div>
-                                                    <div className="ml-3">
-                                                        <p className="text-sm text-gray-500">{relation.type}</p>
-                                                        <p className="font-medium text-gray-900">{relation.name}</p>
-                                                    </div>
-                                                </motion.div>
-                                            ))}
+                                {/* Spouses */}
+                                <div>
+                                    <h3 className="text-lg font-medium text-gray-900 mb-3">Conjoints</h3>
+                                    {memberWithRelations.relations.spouses && memberWithRelations.relations.spouses.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {memberWithRelations.relations.spouses.map((spouse: Member) =>
+                                                renderMemberCard(spouse, spouse.gender === 'female' ? 'Épouse' :
+                                                    spouse.gender === 'male' ? 'Époux' : 'Conjoint(e)')
+                                            )}
                                         </div>
-                                    </motion.div>
+                                    ) : (
+                                        <div className="bg-gray-50 rounded-lg border border-gray-100 p-4 text-center text-gray-500">
+                                            Aucun conjoint enregistré
+                                        </div>
+                                    )}
+                                </div>
 
-                                    <motion.div
-                                        className="bg-gray-50 rounded-xl p-5 border border-gray-100 shadow-sm"
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.5 }}
-                                    >
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
-                                        <div className="flex flex-col gap-3">
-                                            <motion.button
-                                                className="w-full bg-black text-white py-3 px-4 rounded-lg transition-all flex items-center justify-center shadow-sm"
-                                                whileHover={{ y: -2, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
-                                                whileTap={{ y: 0 }}
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                                                </svg>
-                                                Ajouter un parent
-                                            </motion.button>
-                                            <motion.button
-                                                className="w-full bg-gray-100 text-gray-900 py-3 px-4 rounded-lg border border-gray-200 transition-all flex items-center justify-center shadow-sm"
-                                                whileHover={{ y: -2, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.05)" }}
-                                                whileTap={{ y: 0 }}
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                                </svg>
-                                                Ajouter un enfant
-                                            </motion.button>
+                                {/* Children */}
+                                <div>
+                                    <h3 className="text-lg font-medium text-gray-900 mb-3">Enfants</h3>
+                                    {memberWithRelations.relations.children && memberWithRelations.relations.children.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {memberWithRelations.relations.children.map((child: Member) =>
+                                                renderMemberCard(child, child.gender === 'female' ? 'Fille' :
+                                                    child.gender === 'male' ? 'Fils' : 'Enfant')
+                                            )}
                                         </div>
-                                    </motion.div>
+                                    ) : (
+                                        <div className="bg-gray-50 rounded-lg border border-gray-100 p-4 text-center text-gray-500">
+                                            Aucun enfant enregistré
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Siblings */}
+                                <div>
+                                    <h3 className="text-lg font-medium text-gray-900 mb-3">Frères et sœurs</h3>
+                                    {memberWithRelations.relations.siblings && memberWithRelations.relations.siblings.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {memberWithRelations.relations.siblings.map((sibling: Member) =>
+                                                renderMemberCard(sibling, sibling.gender === 'female' ? 'Sœur' :
+                                                    sibling.gender === 'male' ? 'Frère' : 'Frère/Sœur')
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="bg-gray-50 rounded-lg border border-gray-100 p-4 text-center text-gray-500">
+                                            Aucun frère ou sœur enregistré
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                        </div>
-                    </motion.div>
+                        )}
+                    </div>
+                    <div className="px-8 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                        >
+                            Fermer
+                        </button>
+                    </div>
                 </motion.div>
-            )}
+            </motion.div>
         </AnimatePresence>
     );
 };

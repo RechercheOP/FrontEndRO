@@ -1,187 +1,30 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import MemberDetailModal from "../components/genealogy/MemberDetails.tsx";
-import FamilyTree from "../components/genealogy/Genealogygraph.tsx";
+import { useState, useEffect } from 'react';
+import MemberDetailModal from "../components/genealogy/MemberDetails";
+import FamilyTree from "../components/genealogy/Genealogygraph";
+import FamilySelector from "../components/family/FamilySelector";
+import FamilyForm from "../components/family/FamilyForm";
+import { useFamily } from "../contexts/FamilyContext";
+import SearchBar from "../components/genealogy/SearchBar";
 
 const HomePage = () => {
     // État pour gérer le membre sélectionné
     const [selectedMember, setSelectedMember] = useState<any>(null);
+    const [isCreateFamilyModalOpen, setIsCreateFamilyModalOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const { members, relations, loadingMembers, selectedFamily } = useFamily();
 
-
-    const familyMembers = [
-        {
-            id: 1,
-            name: "Jean Dupont",
-            birthDate: "1920-05-15",
-            deathDate: "2005-11-20",
-            birthPlace: "Paris, France",
-            occupation: "Ingénieur",
-            bio: "Fondateur de l'entreprise familiale. A servi pendant la Seconde Guerre mondiale.",
-            photoUrl: "https://randomuser.me/api/portraits/men/1.jpg",
-            relations: [
-                { type: "parent", name: "Pierre Dupont" },
-                { type: "parent", name: "Claire Dupont" },
-                { type: "conjoint", name: "Marie Martin" }
-            ]
-        },
-        {
-            id: 2,
-            name: "Marie Martin",
-            birthDate: "1925-08-22",
-            deathDate: "2010-03-10",
-            birthPlace: "Lyon, France",
-            occupation: "Infirmière",
-            bio: "A travaillé à l'hôpital local pendant 40 ans. Passionnée de jardinage.",
-            photoUrl: "https://randomuser.me/api/portraits/women/1.jpg",
-            relations: [
-                { type: "parent", name: "Pierre Dupont" },
-                { type: "parent", name: "Claire Dupont" },
-                { type: "conjoint", name: "Jean Dupont" }
-            ]
-        },
-        {
-            id: 3,
-            name: "Pierre Dupont",
-            birthDate: "1950-07-30",
-            deathDate: "",
-            birthPlace: "Paris, France",
-            occupation: "Médecin",
-            bio: "Spécialiste en cardiologie. A publié plusieurs articles médicaux.",
-            photoUrl: "https://randomuser.me/api/portraits/men/2.jpg",
-            relations: [
-                { type: "enfant", name: "Jean Dupont" },
-                { type: "enfant", name: "Marie Martin" },
-                { type: "parent", name: "Thomas Dupont" },
-                { type: "conjoint", name: "Sophie Lambert" }
-            ]
-        },
-        {
-            id: 4,
-            name: "Sophie Lambert",
-            birthDate: "1955-02-14",
-            deathDate: "",
-            birthPlace: "Marseille, France",
-            occupation: "Professeure",
-            bio: "Enseigne la littérature française à l'université. Auteur de deux romans.",
-            photoUrl: "https://randomuser.me/api/portraits/women/2.jpg",
-            relations: [
-                { type: "parent", name: "Thomas Dupont" },
-                { type: "conjoint", name: "Pierre Dupont" }
-            ]
-        },
-        {
-            id: 5,
-            name: "Thomas Dupont",
-            birthDate: "1980-11-05",
-            deathDate: "",
-            birthPlace: "Lyon, France",
-            occupation: "Avocat",
-            bio: "Spécialisé en droit des affaires. Marié avec deux enfants.",
-            photoUrl: "https://randomuser.me/api/portraits/men/3.jpg",
-            relations: [
-                { type: "enfant", name: "Pierre Dupont" },
-                { type: "enfant", name: "Sophie Lambert" },
-                { type: "parent", name: "Lucas Dupont" },
-                { type: "parent", name: "Emma Dupont" },
-                { type: "conjoint", name: "Julie Bernard" }
-            ]
-        },
-        {
-            id: 6,
-            name: "Julie Bernard",
-            birthDate: "1982-04-18",
-            deathDate: "",
-            birthPlace: "Toulouse, France",
-            occupation: "Architecte",
-            bio: "A conçu plusieurs bâtiments primés. Passionnée d'art moderne.",
-            photoUrl: "https://randomuser.me/api/portraits/women/3.jpg",
-            relations: [
-                { type: "parent", name: "Lucas Dupont" },
-                { type: "parent", name: "Emma Dupont" },
-                { type: "conjoint", name: "Thomas Dupont" }
-            ]
-        },
-        {
-            id: 7,
-            name: "Lucas Dupont",
-            birthDate: "2010-09-12",
-            deathDate: "",
-            birthPlace: "Lyon, France",
-            occupation: "Étudiant",
-            bio: "Élève au lycée. Passionné de football et de programmation.",
-            photoUrl: "https://randomuser.me/api/portraits/men/4.jpg",
-            relations: [
-                { type: "enfant", name: "Thomas Dupont" },
-                { type: "enfant", name: "Julie Bernard" }
-            ]
-        },
-        {
-            id: 8,
-            name: "Emma Dupont",
-            birthDate: "2012-03-25",
-            deathDate: "",
-            birthPlace: "Lyon, France",
-            occupation: "Étudiante",
-            bio: "Aime la danse et la musique. Souhaite devenir vétérinaire.",
-            photoUrl: "https://randomuser.me/api/portraits/women/4.jpg",
-            relations: [
-                { type: "enfant", name: "Thomas Dupont" },
-                { type: "enfant", name: "Julie Bernard" }
-            ]
-        },
-        {
-            id: 9,
-            name: "Claire Dupont",
-            birthDate: "1952-12-03",
-            deathDate: "",
-            birthPlace: "Paris, France",
-            occupation: "Artiste",
-            bio: "Peintre renommée. Expositions internationales.",
-            photoUrl: "https://randomuser.me/api/portraits/women/5.jpg",
-            relations: [
-                { type: "enfant", name: "Jean Dupont" },
-                { type: "enfant", name: "Marie Martin" },
-                { type: "conjoint", name: "Jacques Leroy" }
-            ]
-        },
-        {
-            id: 10,
-            name: "Jacques Leroy",
-            birthDate: "1948-06-19",
-            deathDate: "",
-            birthPlace: "Nice, France",
-            occupation: "Journaliste",
-            bio: "Correspondant à l'étranger pendant 20 ans. Maintenant à la retraite.",
-            photoUrl: "https://randomuser.me/api/portraits/men/5.jpg",
-            relations: [
-                { type: "conjoint", name: "Claire Dupont" }
-            ]
+    // Simuler un temps de chargement pour une meilleure expérience utilisateur
+    useEffect(() => {
+        if (!loadingMembers) {
+            const timer = setTimeout(() => {
+                setIsLoading(false);
+            }, 800);
+            return () => clearTimeout(timer);
         }
-    ];
-    const familyRelations = [
-        // Relations parentales (sans label explicite sur l'arête pour alléger)
-        { from: 1, to: 3, type:"parent" }, // Utilise le label pour identifier le type, mais on peut le cacher visuellement
-        { from: 2, to: 3, type:"parent" },
-        { from: 1, to: 2, type:"conjoint" },
-        { from: 3, to: 5, type:"parent" },
-        { from: 1, to: 6, type:"conjoint" },
-        { from: 4, to: 5, type:"parent" },
-        { from: 5, to: 7, type:"parent" },
-        { from: 6, to: 7, type:"parent" },
-        { from: 5, to: 8, type:"parent" },
-        { from: 6, to: 8, type:"parent" },
-        { from: 1, to: 9, type:"parent" },
-        { from: 2, to: 9, type:"parent" },
+    }, [loadingMembers]);
 
-        // Relations de couple (avec un label 'marié' ou symbole, et style différent)
-        // IMPORTANT: Pour un layout hiérarchique propre, on utilise un nœud 'union' invisible
-        // { from: 1, to: 2, label: "marié", dashes: true, color: { color: "#888888" } }, // Remplacé par noeud union
-        // { from: 3, to: 4, label: "marié", dashes: true, color: { color: "#888888" } }, // Remplacé par noeud union
-        // { from: 5, to: 6, label: "marié", dashes: true, color: { color: "#888888" } }, // Remplacé par noeud union
-        // { from: 9, to: 10, label: "marié", dashes: true, color: { color: "#888888" } }, // Remplacé par noeud union
-    ];
     // Fonction pour gérer la sélection d'un membre
-    const handleSelectMember = (member) => {
+    const handleSelectMember = (member: any) => {
         setSelectedMember(member);
     };
 
@@ -191,24 +34,91 @@ const HomePage = () => {
             <div className="fixed -top-40 -left-40 w-96 h-96 bg-gray-100 rounded-full opacity-30 blur-3xl"></div>
             <div className="fixed bottom-60 right-10 w-80 h-80 bg-gray-200 rounded-full opacity-30 blur-3xl"></div>
 
-            {/* Conteneur principal avec flex-grow pour occuper l'espace disponible */}
-            <div className="flex-grow flex flex-col">
-                {/* Visualisation de l'arbre - maintenant responsive */}
-                <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm overflow-hidden backdrop-blur-sm flex-grow">
-                    <FamilyTree
-                        members={familyMembers}
-                        relations={familyRelations}
-                        onSelectMember={handleSelectMember}
-                    />
-                </div>
+            {/* En-tête avec sélecteur de famille et recherche */}
+            <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <FamilySelector onCreateNewFamily={() => setIsCreateFamilyModalOpen(true)} />
 
-                {/* Espace en bas si nécessaire */}
-                <div className="h-0"></div>
+                <div className="flex gap-3">
+                    <SearchBar />
+                    <button
+                        onClick={() => setIsCreateFamilyModalOpen(true)}
+                        className="bg-black text-white p-2.5 rounded-lg hover:bg-gray-800 transition-colors"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
+            {/* État de chargement ou d'absence de famille */}
+            {isLoading || loadingMembers ? (
+                <div className="flex-grow flex items-center justify-center bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+                    <div className="text-center">
+                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black mb-4"></div>
+                        <h2 className="text-xl font-medium text-gray-800">Chargement de votre arbre généalogique...</h2>
+                        <p className="text-gray-500 mt-2">Cette opération peut prendre quelques instants</p>
+                    </div>
+                </div>
+            ) : !selectedFamily ? (
+                <div className="flex-grow flex items-center justify-center bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+                    <div className="text-center max-w-md">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                        </div>
+                        <h2 className="text-xl font-medium text-gray-800">Aucune famille sélectionnée</h2>
+                        <p className="text-gray-500 mt-2 mb-6">Veuillez sélectionner une famille existante ou créer une nouvelle famille pour commencer.</p>
+                        <button
+                            onClick={() => setIsCreateFamilyModalOpen(true)}
+                            className="bg-black text-white px-5 py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors"
+                        >
+                            Créer une famille
+                        </button>
+                    </div>
+                </div>
+            ) : members.length === 0 ? (
+                <div className="flex-grow flex items-center justify-center bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
+                    <div className="text-center max-w-md">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 mx-auto">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                            </svg>
+                        </div>
+                        <h2 className="text-xl font-medium text-gray-800">Arbre généalogique vide</h2>
+                        <p className="text-gray-500 mt-2 mb-6">Cette famille ne contient encore aucun membre. Commencez par ajouter le premier membre à votre arbre.</p>
+                        <button
+                            onClick={() => setIsCreateFamilyModalOpen(true)} // Vous devrez créer un composant AddMemberButton ou utiliser votre modal existante
+                            className="bg-black text-white px-5 py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors"
+                        >
+                            Ajouter un membre
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                /* Conteneur principal avec flex-grow pour occuper l'espace disponible */
+                <div className="flex-grow flex flex-col">
+                    {/* Visualisation de l'arbre - maintenant responsive */}
+                    <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm overflow-hidden backdrop-blur-sm flex-grow">
+                        <FamilyTree
+                            members={members}
+                            relations={relations}
+                            onSelectMember={handleSelectMember}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Modals */}
             <MemberDetailModal
                 selectedMember={selectedMember}
                 onClose={() => setSelectedMember(null)}
+            />
+
+            <FamilyForm
+                isOpen={isCreateFamilyModalOpen}
+                onClose={() => setIsCreateFamilyModalOpen(false)}
             />
         </div>
     );

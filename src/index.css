@@ -27,21 +27,62 @@
 }
 
 /* Styles spécifiques pour la scrollbar (optionnel, style moderne) */
+/* Ajoutez ceci à votre fichier de styles global */
+
+/* Styles pour la scrollbar personnalisée */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Pour Firefox */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) rgba(0, 0, 0, 0.1);
+}
+
+/* Styles pour la scrollbar principale */
 ::-webkit-scrollbar {
-    width: 8px;
+    width: 1px;
     height: 8px;
 }
+
 ::-webkit-scrollbar-track {
-    background: hsl(240 4.8% 95.9% / 0.5); /* muted/50 */
+    background: rgba(241, 241, 241, 0.84);
     border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb {
-    background: hsl(240 5.9% 90%); /* border */
+    background: rgba(193, 193, 193, 0.77);
     border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-    background: hsl(240 3.8% 46.1%); /* muted-foreground */
+    background: rgba(168, 168, 168, 0.8);
 }
+
+/* Pour Firefox */
+html {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(193, 193, 193, 0.76) rgba(241, 241, 241, 0.77);
+}
+
+
+
+/********************************************************************/
 canvas{
     min-height: 500px;
 }

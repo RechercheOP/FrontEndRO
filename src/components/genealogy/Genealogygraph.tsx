@@ -1,30 +1,18 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Network, DataSet, Node, Edge, Options } from 'vis-network/standalone';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// Types pour l'arbre généalogique
-interface FamilyMember {
-    id: number;
-    name: string;
-    birthDate: string;
-    birthPlace: string;
-    deathDate: string;
-    occupation: string;
-    bio: string;
-    photoUrl: string;
-    relations?: Array<{type: string, name: string}>;
-}
-
-interface Relation {
-    from: number;
-    to: number;
-    type: 'conjoint' | 'parent' | 'enfant' | 'frère/sœur';
-}
+import { Member } from '../../services/memberService';
+import { Relation } from '../../services/relationService';
 
 interface FamilyTreeProps {
-    members: FamilyMember[];
+    members: Member[];
     relations: Relation[];
-    onSelectMember: (member: FamilyMember) => void;
+    onSelectMember: (member: Member) => void;
+}
+
+interface UnionNode {
+    id: string;
+    parentIds: [number, number];
 }
 
 const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => {
@@ -34,129 +22,170 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
     const [showMiniMap, setShowMiniMap] = useState(true);
     const [viewMode, setViewMode] = useState<'hierarchical' | 'free'>('hierarchical');
     const [highlightMode, setHighlightMode] = useState<'none' | 'ancestors' | 'descendants'>('none');
-    const [selectedNode, setSelectedNode] = useState<number | null>(null);
+    const [selectedNode, setSelectedNode] = useState<number | string | null>(null);
     const [nodes, setNodes] = useState<DataSet<Node> | null>(null);
     const [edges, setEdges] = useState<DataSet<Edge> | null>(null);
     const [showControls, setShowControls] = useState(true);
 
+    // Écouteur d'événement pour redimensionnement
     useEffect(() => {
         const handleResize = () => {
             if (network) {
                 network.fit({ animation: true });
             }
         };
-
         window.addEventListener('resize', handleResize);
         return () => {
             window.removeEventListener('resize', handleResize);
         };
     }, [network]);
 
-    // Fonction pour calculer les niveaux hiérarchiques
-    const calculateNodeLevels = useCallback(() => {
-        const nodeLevels = new Map<number, number>();
-        const memberIds = new Set(members.map(m => m.id));
-        const childrenMap = new Map<number, number[]>();
-        const parentsMap = new Map<number, number[]>();
-        const conjugalPairs = new Map<string, number[]>();
+    // --- 1. Préparation des données pour le graphe ---
+    const buildGraphData = useCallback(() => {
+        // Map pour accès rapide
+        const memberMap = new Map<number, Member>();
+        members.forEach(m => memberMap.set(Number(m.id), m));
 
-        // Identifier les relations de type conjoint
-        relations.forEach(rel => {
-            if (rel.type === 'conjoint') {
-                const pair = [rel.from, rel.to].sort((a, b) => a - b);
-                const pairKey = `${pair[0]}-${pair[1]}`;
-                conjugalPairs.set(pairKey, pair);
-            }
-        });
-
-        // Construire les maps de relations parentales
+        // Mapping des enfants → [parents]
+        const childToParents = new Map<number, number[]>();
         relations.forEach(rel => {
             if (rel.type === 'parent') {
-                if (memberIds.has(rel.from) && memberIds.has(rel.to)) {
-                    if (!childrenMap.has(rel.from)) childrenMap.set(rel.from, []);
-                    childrenMap.get(rel.from)!.push(rel.to);
+                const childId = Number(rel.targetId);
+                const parentId = Number(rel.sourceId);
+                if (!childToParents.has(childId)) childToParents.set(childId, []);
+                childToParents.get(childId)!.push(parentId);
+            }
+        });
 
-                    if (!parentsMap.has(rel.to)) parentsMap.set(rel.to, []);
-                    parentsMap.get(rel.to)!.push(rel.from);
+        // --- Création des nœuds union uniquement pour enfants à 2 parents ---
+        const unionNodes: UnionNode[] = [];
+        const unionNodeMap = new Map<string, UnionNode>();
+        childToParents.forEach((parents, childId) => {
+            if (parents.length === 2) {
+                const sortedParents = [...parents].sort((a, b) => a - b) as [number, number];
+                const key = sortedParents.join('-');
+                if (!unionNodeMap.has(key)) {
+                    const unionId = 'U' + (unionNodes.length + 1);
+                    const unionNode: UnionNode = { id: unionId, parentIds: sortedParents };
+                    unionNodes.push(unionNode);
+                    unionNodeMap.set(key, unionNode);
                 }
             }
         });
 
-        // Trouver les racines (nœuds sans parents)
-        const roots: number[] = [];
+        // --- Calcul des niveaux ---
+        // - Membres sans parents : niveau 0
+        // - Union : max(niveau parents) +1
+        // - Enfant : union+1 si 2 parents, parent+1 si 1 parent
+        const levels = new Map<string | number, number>();
+
+        // 1. Membres racines (sans parents)
         members.forEach(member => {
-            if (!parentsMap.has(member.id) || parentsMap.get(member.id)!.length === 0) {
-                roots.push(member.id);
+            if (!Array.from(childToParents.keys()).includes(Number(member.id))) {
+                levels.set(Number(member.id), 0);
             }
         });
 
-        // Calculer les niveaux par BFS depuis les racines
-        const queue: { id: number; level: number }[] = roots.map(id => ({ id, level: 0 }));
-        const visited = new Set<number>();
-
-        roots.forEach(rootId => {
-            nodeLevels.set(rootId, 0);
-            visited.add(rootId);
-        });
-
-        let head = 0;
-        while (head < queue.length) {
-            const { id: parentId, level: currentLevel } = queue[head++];
-
-            const children = childrenMap.get(parentId) || [];
-            children.forEach(childId => {
-                const existingLevel = nodeLevels.get(childId);
-                const newLevel = currentLevel + 1;
-
-                if (existingLevel === undefined || newLevel > existingLevel) {
-                    nodeLevels.set(childId, newLevel);
-                    if (!visited.has(childId)) {
-                        visited.add(childId);
-                    }
-                    queue.push({ id: childId, level: newLevel });
-                } else if (!visited.has(childId)) {
-                    visited.add(childId);
-                    queue.push({ id: childId, level: existingLevel });
-                }
-            });
+        function getMemberLevel(id: number): number {
+            if (levels.has(id)) return levels.get(id)!;
+            const parentIds = childToParents.get(id);
+            if (!parentIds || parentIds.length === 0) {
+                levels.set(id, 0);
+                return 0;
+            }
+            if (parentIds.length === 1) {
+                const lvl = getMemberLevel(parentIds[0]) + 1;
+                levels.set(id, lvl);
+                return lvl;
+            }
+            // 2 parents → nœud union
+            const sorted = [...parentIds].sort((a, b) => a - b) as [number, number];
+            const key = sorted.join('-');
+            const unionId = unionNodeMap.get(key)?.id;
+            if (unionId) {
+                const unionLevel = getUnionLevel(unionId);
+                levels.set(id, unionLevel + 1);
+                return unionLevel + 1;
+            }
+            // fallback
+            const maxLvl = Math.max(...parentIds.map(getMemberLevel));
+            levels.set(id, maxLvl + 1);
+            return maxLvl + 1;
         }
 
-        // Assigner un niveau 0 par défaut aux nœuds non atteints
-        members.forEach(member => {
-            if (!nodeLevels.has(member.id)) {
-                nodeLevels.set(member.id, 0);
+        function getUnionLevel(unionId: string): number {
+            if (levels.has(unionId)) return levels.get(unionId)!;
+            const union = unionNodes.find(u => u.id === unionId);
+            if (!union) return 0;
+            const lvl = Math.max(getMemberLevel(union.parentIds[0]), getMemberLevel(union.parentIds[1])) + 1;
+            levels.set(unionId, lvl);
+            return lvl;
+        }
+
+        members.forEach(member => { getMemberLevel(Number(member.id)); });
+        unionNodes.forEach(union => { getUnionLevel(union.id); });
+
+        // Ajustement des conjoints pour qu'ils soient au même niveau
+        const processedSpousePairs = new Set<string>();
+        relations.forEach(rel => {
+            if (rel.type === 'spouse') {
+                const id1 = Number(rel.sourceId);
+                const id2 = Number(rel.targetId);
+                const sortedIds = [id1, id2].sort((a, b) => a - b);
+                const pairKey = sortedIds.join('-');
+
+                // Éviter de traiter deux fois la même paire
+                if (processedSpousePairs.has(pairKey)) return;
+                processedSpousePairs.add(pairKey);
+
+                // Si les deux conjoints ont des niveaux différents, les mettre au même niveau
+                if (levels.has(id1) && levels.has(id2)) {
+                    const level1 = levels.get(id1)!;
+                    const level2 = levels.get(id2)!;
+
+                    // Toujours prendre le niveau le plus bas (plus profond dans l'arbre)
+                    const maxLevel = Math.max(level1, level2);
+
+                    // Forcer les deux conjoints à être au même niveau
+                    levels.set(id1, maxLevel);
+                    levels.set(id2, maxLevel);
+                }
             }
         });
 
-        // Ajuster les niveaux pour les conjoints
-        conjugalPairs.forEach(pair => {
-            const [id1, id2] = pair;
-            const level1 = nodeLevels.get(id1) || 0;
-            const level2 = nodeLevels.get(id2) || 0;
+        // Pour les nœuds union, assurez-vous que le niveau correspond à celui des parents
+        unionNodes.forEach(union => {
+            const [parent1, parent2] = union.parentIds;
+            const parent1Level = levels.get(parent1) || 0;
+            const parent2Level = levels.get(parent2) || 0;
 
-            // Prendre le niveau le plus élevé des deux
-            const maxLevel = Math.max(level1, level2);
-            nodeLevels.set(id1, maxLevel);
-            nodeLevels.set(id2, maxLevel);
+            // Le nœud d'union doit être au même niveau que ses parents
+            const parentMaxLevel = Math.max(parent1Level, parent2Level);
+            levels.set(union.id, parentMaxLevel);
+
+            // Et maintenant, assurons-nous que les deux parents sont au même niveau
+            levels.set(parent1, parentMaxLevel);
+            levels.set(parent2, parentMaxLevel);
         });
 
-        return nodeLevels;
-    }, [members, relations]);
-
-    // Fonction pour créer les nœuds et les arêtes
-    const createNetworkData = useCallback(() => {
-        const nodeLevels = calculateNodeLevels();
-
-        // Convertir les membres en nœuds vis.js
-        const nodeDataset = new DataSet<Node>(
-            members.map(member => ({
+        // --- Construction des nœuds ---
+        const nodesData: Node[] = [];
+        members.forEach(member => {
+            const fullName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
+            const birthYear = member.birthDate ? member.birthDate.substring(0, 4) : '?';
+            const deathYear = member.deathDate ? member.deathDate.substring(0, 4) : '';
+            const label = fullName + (deathYear
+                ? `\n(${birthYear}-${deathYear})`
+                : `\n(${birthYear}${member.birthDate ? '-' : ''})`);
+            nodesData.push({
                 id: member.id,
-                label: member.name + (member.deathDate ? `\n(${member.birthDate.substring(0, 4)}-${member.deathDate.substring(0, 4)})` : `\n(${member.birthDate.substring(0, 4)}-)`),
+                label,
                 shape: 'circularImage',
-                image: member.photoUrl,
+                image: member.photoUrl || 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png', // Fallback image
                 borderWidth: 2,
                 size: 45,
-                title: `${member.name}\n${member.occupation}`,
+                level: levels.get(Number(member.id)),
+                title: `${fullName}\n${member.occupation || ''}`,
                 font: {
                     multi: 'html',
                     face: 'Inter, system-ui, sans-serif'
@@ -168,219 +197,147 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
                     x: 0,
                     y: 2
                 },
-                level: nodeLevels.get(member.id) // Utiliser le niveau calculé
-            }))
-        );
-
-        // Convertir les relations en arêtes vis.js
-        const edgeDataset = new DataSet<Edge>(
-            relations.map((relation, index) => {
-                let color, label, dashes, width, smooth;
-
-                switch (relation.type) {
-                    case 'conjoint':
-                        color = { color: '#ff0000', hover: '#ff0000', highlight: '#ff0000' };
-                        label = 'marié';
-                        dashes = false;
-                        width = 2;
-                        smooth = {
-                            enabled: true,
-                            type: 'curvedCW',
-                            roundness: 0.2,
-                            forceDirection: 'horizontal'
-                        };
-                        break;
-                    case 'parent':
-                        color = { color: '#faf03c', hover: '#e7a30f', highlight: '#ff6c24' };
-                        label = 'parent';
-                        dashes = false;
-                        width = 1.5;
-                        smooth = { enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5 };
-                        break;
-                    case 'enfant':
-                        color = { color: '#faf03c', hover: '#e7a30f', highlight: '#000000' };
-                        label = 'enfant';
-                        dashes = false;
-                        width = 1.5;
-                        smooth = { enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5 };
-                        break;
-                    case 'frère/sœur':
-                        color = { color: '#777777', hover: '#999999', highlight: '#000000' };
-                        label = 'frère/sœur';
-                        dashes = [5, 5];
-                        width = 1;
-                        smooth = { enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5 };
-                        break;
-                    default:
-                        color = { color: '#faf03c', hover: '#e7a30f', highlight: '#000000' };
-                        label = relation.type;
-                        dashes = false;
-                        width = 1;
-                        smooth = { enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.5 };
-                }
-
-                return {
-                    id: index,
-                    from: relation.from,
-                    to: relation.to,
-                    label,
-                    dashes,
-                    color,
-                    width,
-                    smooth,
-                    font: {
-                        color: '#000000',
-                        size: 10,
-                        background: 'rgba(255, 255, 255, 0.8)',
-                        strokeWidth: 0
-                    }
-                };
-            })
-        );
-
-        setNodes(nodeDataset);
-        setEdges(edgeDataset);
-        return { nodes: nodeDataset, edges: edgeDataset };
-    }, [members, relations, calculateNodeLevels]);
-
-    // Fonction pour obtenir les options du réseau
-    const getNetworkOptions = useCallback(() => {
-        const baseOptions: Options = {
-            nodes: {
-                borderWidth: 2,
-                size: 45,
+                borderWidthSelected: 4,
                 color: {
-                    border: '#fa0202',
-                    background: '#ffffff',
+                    border: member.gender === 'male' ? '#3182CE' :
+                        member.gender === 'female' ? '#D53F8C' : '#718096',
+                    background: '#FFFFFF',
                     highlight: {
-                        border: '#0a72bc',
-                        background: '#f3f3f3'
+                        border: '#4A5568',
+                        background: '#F7FAFC'
                     },
                     hover: {
-                        border: '#444444',
-                        background: '#f9f9f9'
+                        border: '#2D3748',
+                        background: '#EDF2F7'
                     }
-                },
-                font: {
-                    color: '#000000',
-                    background: 'rgb(255,255,255)',
-                    size: 14,
-                    face: 'Inter, system-ui, sans-serif',
-                    strokeWidth: 0,
-                    align: 'center'
-                },
-                shadow: {
-                    enabled: true,
-                    color: 'rgba(0,0,0,0.2)',
-                    size: 10,
-                    x: 0,
-                    y: 2
                 }
-            },
-            edges: {
-                width: 1.5,
-                color: {
-                    color: '#000000',
-                    highlight: '#333333',
-                    hover: '#555555'
-                },
-                smooth: {
-                    type: 'cubicBezier',
-                    forceDirection: 'vertical'
-                },
-                font: {
-                    color: '#000000',
-                    size: 11,
-                    strokeWidth: 0,
-                    align: 'middle',
-                    background: 'rgb(255,255,255)'
-                },
-                arrows: {
-                    to: true,
-                    from: false
-                },
-                selectionWidth: 3
-            },
-            interaction: {
-                hover: true,
-                multiselect: false,
-                navigationButtons: false,
-                keyboard: true,
-                tooltipDelay: 200,
-                zoomView: true,
-                dragView: true
-            }
-        };
+            });
+        });
 
-        // Options spécifiques au mode hiérarchique
-        if (viewMode === 'hierarchical') {
-            return {
-                ...baseOptions,
-                layout: {
-                    hierarchical: {
-                        direction: 'UD',
-                        sortMethod: 'directed',
-                        nodeSpacing: 180,
-                        levelSeparation: 180,
-                        blockShifting: true,
-                        edgeMinimization: true,
-                        parentCentralization: true,
-                        treeSpacing: 200
+        unionNodes.forEach(union => {
+            nodesData.push({
+                id: union.id,
+                label: '⚭',
+                shape: 'dot',
+                size: 20,
+                level: levels.get(union.id),
+                color: { background: '#fff', border: '#aaa' },
+                borderWidth: 1,
+                font: { color: '#aaa', size: 8 },
+                physics: false,
+                title: 'Union/Couple',
+                chosen: {
+                    node: false, // Désactiver la mise en surbrillance de sélection
+                    label: false
+                }
+            });
+        });
+
+        // --- Construction des arêtes ---
+        const edgesData: Edge[] = [];
+        // Parents → union, union → enfants
+        unionNodes.forEach(union => {
+            const [parent1, parent2] = union.parentIds;
+            edgesData.push({
+                id: `P1U-${union.id}`,
+                from: parent1,
+                to: union.id,
+                width: 1.5,
+                color: { color: '#bbb' },
+                dashes: false,
+                arrows: { to: { enabled: true, type: 'arrow' } },
+                smooth: { enabled: true, type: 'curvedCW', roundness: 0.2 }
+            });
+            edgesData.push({
+                id: `P2U-${union.id}`,
+                from: parent2,
+                to: union.id,
+                width: 1.5,
+                color: { color: '#bbb' },
+                dashes: false,
+                arrows: { to: { enabled: true, type: 'arrow' } },
+                smooth: { enabled: true, type: 'curvedCCW', roundness: 0.2 }
+            });
+            // Union → enfants
+            childToParents.forEach((parents, childId) => {
+                if (parents.length === 2) {
+                    const sorted = [...parents].sort((a, b) => a - b);
+                    if (sorted[0] === union.parentIds[0] && sorted[1] === union.parentIds[1]) {
+                        edgesData.push({
+                            id: `U${union.id}-C${childId}`,
+                            from: union.id,
+                            to: childId,
+                            width: 2,
+                            color: { color: '#59ba00' },
+                            label: '',
+                            arrows: { to: { enabled: true, type: 'arrow' } },
+                            smooth: { enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.6 }
+                        });
                     }
-                },
-                physics: {
-                    hierarchicalRepulsion: {
-                        nodeDistance: 220,
-                        springLength: 200,
-                        springConstant: 0.01,
-                        damping: 0.09
-                    },
-                    solver: 'hierarchicalRepulsion'
                 }
-            };
-        } else {
-            // Options pour le mode libre
-            return {
-                ...baseOptions,
-                layout: {
-                    randomSeed: 2,
-                    improvedLayout: true
-                },
-                physics: {
-                    barnesHut: {
-                        gravitationalConstant: -2000,
-                        centralGravity: 0.3,
-                        springLength: 250,
-                        springConstant: 0.04,
-                        damping: 0.09
-                    },
-                    solver: 'barnesHut'
+            });
+        });
+        // Enfant avec un seul parent
+        childToParents.forEach((parents, childId) => {
+            if (parents.length === 1) {
+                edgesData.push({
+                    id: `P${parents[0]}-C${childId}`,
+                    from: parents[0],
+                    to: childId,
+                    width: 2,
+                    color: { color: '#59ba00' },
+                    label: '',
+                    arrows: { to: { enabled: true, type: 'arrow' } },
+                    smooth: { enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4 }
+                });
+            }
+        });
+        // Spouse edges pour couples SANS enfants communs
+        const spousePairsDone = new Set<string>();
+        relations.forEach(rel => {
+            if (rel.type === 'spouse') {
+                const id1 = Number(rel.sourceId);
+                const id2 = Number(rel.targetId);
+                const key = [id1, id2].sort((a, b) => a - b).join('-');
+                if (!unionNodeMap.has(key) && !spousePairsDone.has(key)) {
+                    edgesData.push({
+                        id: `S${id1}-${id2}`,
+                        from: id1,
+                        to: id2,
+                        color: { color: '#e67e22' },
+                        width: 1.5,
+                        dashes: true,
+                        label: 'conjoints',
+                        arrows: {},
+                        smooth: { enabled: true, type: 'curvedCW', roundness: 0.3 }
+                    });
+                    spousePairsDone.add(key);
                 }
-            };
-        }
-    }, [viewMode]);
+            }
+        });
+
+        return { nodes: nodesData, edges: edgesData, unionNodeMap, childToParents };
+    }, [members, relations]);
 
     // Fonction pour mettre en évidence les ancêtres
-    const highlightAncestors = useCallback((nodeId: number) => {
+    const highlightAncestors = useCallback((nodeId: number | string) => {
         if (!nodes || !edges) return;
 
-        // Clone des nœuds et arêtes
-        const allNodes = nodes.get();
-        const allEdges = edges.get();
+        // Vérifier si c'est un nœud union
+        if (typeof nodeId === 'string' && nodeId.startsWith('U')) {
+            return; // Ne pas mettre en évidence les ancêtres pour les nœuds union
+        }
 
-        // Ensemble pour suivre les ancêtres trouvés
+        const numericId = Number(nodeId);
+        const { childToParents } = buildGraphData();
+
+        // Ensemble pour suivre les ancêtres
         const ancestorIds = new Set<number>();
 
         // Fonction récursive pour trouver les ancêtres
         const findAncestors = (id: number) => {
-            // Trouver les arêtes où ce nœud est l'enfant
-            const parentEdges = allEdges.filter(edge =>
-                edge.to === id && (edge.label === 'parent' || edge.label === 'père' || edge.label === 'mère')
-            );
-
-            // Pour chaque arête trouvée, ajouter le parent aux ancêtres
-            parentEdges.forEach(edge => {
-                const parentId = edge.from as number;
+            const parents = childToParents.get(id) || [];
+            parents.forEach(parentId => {
                 if (!ancestorIds.has(parentId)) {
                     ancestorIds.add(parentId);
                     findAncestors(parentId);
@@ -389,66 +346,97 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
         };
 
         // Commencer la recherche
-        findAncestors(nodeId);
+        findAncestors(numericId);
 
-        // Mettre à jour l'apparence des nœuds
+        // Mise à jour visuelle des nœuds
+        const allNodes = nodes.get();
         allNodes.forEach(node => {
-            if (node.id === nodeId) {
+            const currentId = node.id;
+            const numCurrentId = typeof currentId === 'string' && !currentId.startsWith('U')
+                ? Number(currentId)
+                : null;
+
+            if (currentId === nodeId) {
+                // Nœud sélectionné
                 nodes.update({
-                    id: node.id,
+                    id: currentId,
+                    borderWidth: 4,
+                    color: { border: '#F39C12', background: '#FFFFFF' },
+                    font: { color: '#000000', bold: true }
+                });
+            } else if (numCurrentId && ancestorIds.has(numCurrentId)) {
+                // Ancêtre
+                nodes.update({
+                    id: currentId,
                     borderWidth: 3,
-                    color: { background: '#ffffff', border: '#d6b900' }
+                    color: { border: '#3498DB', background: '#EBF5FB' },
+                    font: { color: '#2980B9', bold: true }
                 });
-            } else if (ancestorIds.has(node.id as number)) {
+            } else if (!String(currentId).startsWith('U')) {
+                // Autres nœuds (pas les unions)
                 nodes.update({
-                    id: node.id,
+                    id: currentId,
                     borderWidth: 2,
-                    color: { background: '#f0f9ff', border: '#3b82f6' }
-                });
-            } else {
-                nodes.update({
-                    id: node.id,
-                    borderWidth: 1,
-                    color: { background: '#f8f8f8', border: '#d1d5db' }
+                    color: {
+                        border: '#E0E0E0',
+                        background: '#F5F5F5'
+                    },
+                    font: { color: '#9E9E9E', bold: false }
                 });
             }
         });
 
-        // Mettre à jour l'apparence des arêtes
+        // Mise à jour visuelle des arêtes
+        const allEdges = edges.get();
         allEdges.forEach(edge => {
-            const isAncestorEdge =
-                (ancestorIds.has(edge.from as number) && edge.to === nodeId) ||
-                (ancestorIds.has(edge.from as number) && ancestorIds.has(edge.to as number));
+            const fromId = typeof edge.from === 'string' && !edge.from.startsWith('U')
+                ? Number(edge.from)
+                : edge.from;
+            const toId = typeof edge.to === 'string' && !edge.to.startsWith('U')
+                ? Number(edge.to)
+                : edge.to;
+
+            const isAncestorPath =
+                (ancestorIds.has(fromId as number) && toId === nodeId) ||
+                (ancestorIds.has(fromId as number) && ancestorIds.has(toId as number));
 
             edges.update({
                 id: edge.id,
-                width: isAncestorEdge ? 2 : 1,
-                color: isAncestorEdge ? { color: '#3b82f6' } : { color: '#d1d5db' }
+                width: isAncestorPath ? 3 : 1,
+                color: isAncestorPath ? { color: '#3498DB' } : { color: '#E0E0E0' }
             });
         });
-    }, [nodes, edges]);
+    }, [nodes, edges, buildGraphData]);
 
     // Fonction pour mettre en évidence les descendants
-    const highlightDescendants = useCallback((nodeId: number) => {
+    const highlightDescendants = useCallback((nodeId: number | string) => {
         if (!nodes || !edges) return;
 
-        // Clone des nœuds et arêtes
-        const allNodes = nodes.get();
-        const allEdges = edges.get();
+        // Vérifier si c'est un nœud union
+        if (typeof nodeId === 'string' && nodeId.startsWith('U')) {
+            return; // Ne pas mettre en évidence les descendants pour les nœuds union
+        }
 
-        // Ensemble pour suivre les descendants trouvés
+        const numericId = Number(nodeId);
+
+        // Construire un map de parent -> [enfants]
+        const parentToChildren = new Map<number, number[]>();
+        relations.forEach(rel => {
+            if (rel.type === 'parent') {
+                const parentId = Number(rel.sourceId);
+                const childId = Number(rel.targetId);
+                if (!parentToChildren.has(parentId)) parentToChildren.set(parentId, []);
+                parentToChildren.get(parentId)!.push(childId);
+            }
+        });
+
+        // Ensemble pour suivre les descendants
         const descendantIds = new Set<number>();
 
         // Fonction récursive pour trouver les descendants
         const findDescendants = (id: number) => {
-            // Trouver les arêtes où ce nœud est le parent
-            const childEdges = allEdges.filter(edge =>
-                edge.from === id && (edge.label === 'parent' || edge.label === 'père' || edge.label === 'mère')
-            );
-
-            // Pour chaque arête trouvée, ajouter l'enfant aux descendants
-            childEdges.forEach(edge => {
-                const childId = edge.to as number;
+            const children = parentToChildren.get(id) || [];
+            children.forEach(childId => {
                 if (!descendantIds.has(childId)) {
                     descendantIds.add(childId);
                     findDescendants(childId);
@@ -457,44 +445,67 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
         };
 
         // Commencer la recherche
-        findDescendants(nodeId);
+        findDescendants(numericId);
 
-        // Mettre à jour l'apparence des nœuds
+        // Mise à jour visuelle des nœuds
+        const allNodes = nodes.get();
         allNodes.forEach(node => {
-            if (node.id === nodeId) {
+            const currentId = node.id;
+            const numCurrentId = typeof currentId === 'string' && !currentId.startsWith('U')
+                ? Number(currentId)
+                : null;
+
+            if (currentId === nodeId) {
+                // Nœud sélectionné
                 nodes.update({
-                    id: node.id,
+                    id: currentId,
+                    borderWidth: 4,
+                    color: { border: '#F39C12', background: '#FFFFFF' },
+                    font: { color: '#000000', bold: true }
+                });
+            } else if (numCurrentId && descendantIds.has(numCurrentId)) {
+                // Descendant
+                nodes.update({
+                    id: currentId,
                     borderWidth: 3,
-                    color: { background: '#ffffff', border: '#000000' }
+                    color: { border: '#2ECC71', background: '#EAFAF1' },
+                    font: { color: '#27AE60', bold: true }
                 });
-            } else if (descendantIds.has(node.id as number)) {
+            } else if (!String(currentId).startsWith('U')) {
+                // Autres nœuds (pas les unions)
                 nodes.update({
-                    id: node.id,
+                    id: currentId,
                     borderWidth: 2,
-                    color: { background: '#f0fdf4', border: '#22c55e' }
-                });
-            } else {
-                nodes.update({
-                    id: node.id,
-                    borderWidth: 1,
-                    color: { background: '#f8f8f8', border: '#d1d5db' }
+                    color: {
+                        border: '#E0E0E0',
+                        background: '#F5F5F5'
+                    },
+                    font: { color: '#9E9E9E', bold: false }
                 });
             }
         });
 
-        // Mettre à jour l'apparence des arêtes
+        // Mise à jour visuelle des arêtes
+        const allEdges = edges.get();
         allEdges.forEach(edge => {
-            const isDescendantEdge =
-                (edge.from === nodeId && descendantIds.has(edge.to as number)) ||
-                (descendantIds.has(edge.from as number) && descendantIds.has(edge.to as number));
+            const fromId = typeof edge.from === 'string' && !edge.from.startsWith('U')
+                ? Number(edge.from)
+                : edge.from;
+            const toId = typeof edge.to === 'string' && !edge.to.startsWith('U')
+                ? Number(edge.to)
+                : edge.to;
+
+            const isDescendantPath =
+                (fromId === nodeId && descendantIds.has(toId as number)) ||
+                (descendantIds.has(fromId as number) && descendantIds.has(toId as number));
 
             edges.update({
                 id: edge.id,
-                width: isDescendantEdge ? 2 : 1,
-                color: isDescendantEdge ? { color: '#22c55e' } : { color: '#d1d5db' }
+                width: isDescendantPath ? 3 : 1,
+                color: isDescendantPath ? { color: '#2ECC71' } : { color: '#E0E0E0' }
             });
         });
-    }, [nodes, edges]);
+    }, [nodes, edges, relations]);
 
     // Fonction pour réinitialiser la mise en évidence
     const resetHighlighting = useCallback(() => {
@@ -503,61 +514,85 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
         // Réinitialiser tous les nœuds
         const allNodes = nodes.get();
         allNodes.forEach(node => {
-            nodes.update({
-                id: node.id,
-                borderWidth: 3,
-                color: {
-                    background: 'rgba(0,0,0,0.38)',
-                    border: '#000000',
-                    highlight: {
-                        border: '#4e9bf1',
-                        background: '#f3f3f3'
+            const currentId = node.id;
+            if (String(currentId).startsWith('U')) {
+                // Nœud union
+                nodes.update({
+                    id: currentId,
+                    borderWidth: 1,
+                    color: { background: '#fff', border: '#aaa' },
+                    font: { color: '#aaa', size: 8 }
+                });
+            } else {
+                // Nœud membre
+                const member = members.find(m => Number(m.id) === Number(currentId));
+                nodes.update({
+                    id: currentId,
+                    borderWidth: 2,
+                    color: {
+                        border: member?.gender === 'male' ? '#3182CE' :
+                            member?.gender === 'female' ? '#D53F8C' : '#718096',
+                        background: '#FFFFFF',
+                        highlight: {
+                            border: '#4A5568',
+                            background: '#F7FAFC'
+                        },
+                        hover: {
+                            border: '#2D3748',
+                            background: '#EDF2F7'
+                        }
                     },
-                    hover: {
-                        border: '#0073f4',
-                        background: '#f9f9f9'
+                    font: {
+                        color: '#000000',
+                        bold: false
                     }
-                }
-            });
+                });
+            }
         });
 
         // Réinitialiser toutes les arêtes
         const allEdges = edges.get();
         allEdges.forEach(edge => {
-            let color, width;
-            const edgeLabel = edge.label;
+            const edgeId = String(edge.id);
 
-            switch (edgeLabel) {
-                case 'marié':
-                    color = { color: '#0066ff', hover: '#ff0044', highlight: '#ff0000' };
-                    width = 2;
-                    break;
-                case 'parent':
-                case 'père':
-                case 'mère':
-                    color = { color: '#59ba00', hover: '#489701', highlight: '#01a34a' };
-                    width = 1.5;
-                    break;
-                case 'enfant':
-                    color = { color: '#59ba00', hover: '#489701', highlight: '#01a34a' };
-                    width = 1.5;
-                    break;
-                case 'frère/sœur':
-                    color = { color: '#777777', hover: '#999999', highlight: '#000000' };
-                    width = 1;
-                    break;
-                default:
-                    color = { color: '#aaaaaa', hover: '#cccccc', highlight: '#000000' };
-                    width = 1;
+            if (edgeId.startsWith('P1U-') || edgeId.startsWith('P2U-')) {
+                // Arête parent → union
+                edges.update({
+                    id: edge.id,
+                    width: 1.5,
+                    color: { color: '#bbb' }
+                });
+            } else if (edgeId.startsWith('U')) {
+                // Arête union → enfant
+                edges.update({
+                    id: edge.id,
+                    width: 2,
+                    color: { color: '#59ba00' }
+                });
+            } else if (edgeId.startsWith('P')) {
+                // Arête parent → enfant (cas d'un seul parent)
+                edges.update({
+                    id: edge.id,
+                    width: 2,
+                    color: { color: '#59ba00' }
+                });
+            } else if (edgeId.startsWith('S')) {
+                // Arête conjoint
+                edges.update({
+                    id: edge.id,
+                    width: 1.5,
+                    color: { color: '#e67e22' }
+                });
+            } else {
+                // Autre type d'arête
+                edges.update({
+                    id: edge.id,
+                    width: 1.5,
+                    color: { color: '#aaaaaa' }
+                });
             }
-
-            edges.update({
-                id: edge.id,
-                width,
-                color
-            });
         });
-    }, [nodes, edges]);
+    }, [nodes, edges, members]);
 
     // Mettre à jour la mise en évidence lorsque le mode change
     useEffect(() => {
@@ -573,37 +608,120 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
         }
     }, [highlightMode, selectedNode, highlightAncestors, highlightDescendants, resetHighlighting]);
 
-    // Initialiser le réseau
     useEffect(() => {
-        if (!networkRef.current) return;
+        if (!networkRef.current || !members.length) return;
 
-        const { nodes: nodeDataset, edges: edgeDataset } = createNetworkData();
-        const options = getNetworkOptions();
+        const graphData = buildGraphData();
+        const nodeDataset = new DataSet<Node>(graphData.nodes);
+        const edgeDataset = new DataSet<Edge>(graphData.edges);
 
-        // Créer le réseau
-        const newNetwork = new Network(networkRef.current, { nodes: nodeDataset, edges: edgeDataset }, options);
-        setNetwork(newNetwork);
+        setNodes(nodeDataset);
+        setEdges(edgeDataset);
 
-        // Gestion des événements
-        newNetwork.on("selectNode", function(params) {
-            const selectedNodeId = params.nodes[0];
-            setSelectedNode(selectedNodeId);
+        const options: Options = {
+            layout: {
+                hierarchical: viewMode === 'hierarchical' ? {
+                    enabled: true,
+                    direction: 'UD',
+                    sortMethod: 'directed',
+                    nodeSpacing: 130,
+                    levelSeparation: 180,
+                    blockShifting: true,
+                    edgeMinimization: true,
+                    parentCentralization: true,
+                    treeSpacing: 200
+                } : {
+                    enabled: false
+                }
+            },
+            physics: viewMode === 'hierarchical' ? {
+                enabled: false
+            } : {
+                enabled: true,
+                barnesHut: {
+                    gravitationalConstant: -2000,
+                    centralGravity: 0.3,
+                    springLength: 250,
+                    springConstant: 0.04,
+                    damping: 0.09,
+                    avoidOverlap: 0.5
+                }
+            },
+            nodes: {
+                borderWidth: 2,
+                size: 40,
+                color: {
+                    border: '#718096',
+                    background: '#ffffff',
+                    highlight: {
+                        border: '#0a72bc',
+                        background: '#f3f3f3'
+                    },
+                    hover: {
+                        border: '#444444',
+                        background: '#f9f9f9'
+                    }
+                },
+                font: {
+                    color: '#000000',
+                    background: 'rgb(255,255,255)',
+                    size: 14,
+                    face: 'Inter, system-ui, sans-serif'
+                },
+                shadow: {
+                    enabled: true,
+                    color: 'rgba(0,0,0,0.15)',
+                    size: 8,
+                    x: 0,
+                    y: 2
+                }
+            },
+            edges: {
+                width: 1.5,
+                selectionWidth:3,
+                color: {
+                    color: '#000000',
+                    highlight: '#333333',
+                    hover: '#555555'
+                },
+                smooth: { enabled: true, type: 'cubicBezier', forceDirection: 'vertical' },
+                arrows: { to: true }
+            },
+            interaction: {
+                hover: true,
+                multiselect: false,
+                navigationButtons: false,
+                keyboard: true,
+                tooltipDelay: 200,
+                zoomView: true,
+                dragView: true
+            }
+        };
 
-            const selectedMember = members.find(m => m.id === selectedNodeId);
-            if (selectedMember) {
-                onSelectMember(selectedMember);
+        const net = new Network(networkRef.current, { nodes: nodeDataset, edges: edgeDataset }, options);
+        setNetwork(net);
+
+        // Sélection d'un membre
+        net.on('selectNode', params => {
+            const selId = params.nodes[0];
+            setSelectedNode(selId);
+
+            // Si on clique un nœud union, on ignore, sinon onSelectMember
+            if (typeof selId === 'number' || !String(selId).startsWith('U')) {
+                const member = members.find(m => Number(m.id) === Number(selId));
+                if (member) onSelectMember(member);
             }
         });
 
-        newNetwork.on("deselectNode", function() {
+        net.on('deselectNode', () => {
             setSelectedNode(null);
             setHighlightMode('none');
         });
 
-        newNetwork.on("doubleClick", function(params) {
+        net.on('doubleClick', params => {
             if (params.nodes.length > 0) {
                 const nodeId = params.nodes[0];
-                newNetwork.focus(nodeId, {
+                net.focus(nodeId, {
                     scale: 1.2,
                     animation: {
                         duration: 1000,
@@ -613,30 +731,25 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
             }
         });
 
-        // Nettoyage
         return () => {
-            newNetwork.destroy();
+            net.destroy();
         };
-    }, [members, relations, onSelectMember, createNetworkData, getNetworkOptions]);
-
-    // Reconfigurer le réseau quand le mode de vue change
-    useEffect(() => {
-        if (network) {
-            const options = getNetworkOptions();
-            network.setOptions(options);
-        }
-    }, [network, viewMode, getNetworkOptions]);
+    }, [members, relations, onSelectMember, buildGraphData, viewMode]);
 
     // Gestion du mode plein écran
     const toggleFullscreen = () => {
         if (!isFullscreen) {
             const element = networkRef.current?.parentElement as HTMLElement;
-            if (element.requestFullscreen) {
-                element.requestFullscreen();
+            if (element?.requestFullscreen) {
+                element.requestFullscreen().catch(err => {
+                    console.error('Erreur lors de la tentative de plein écran :', err);
+                });
             }
         } else {
             if (document.exitFullscreen) {
-                document.exitFullscreen();
+                document.exitFullscreen().catch(err => {
+                    console.error('Erreur lors de la sortie du plein écran :', err);
+                });
             }
         }
         setIsFullscreen(!isFullscreen);
@@ -647,14 +760,13 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
         const handleFullscreenChange = () => {
             setIsFullscreen(!!document.fullscreenElement);
         };
-
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         return () => {
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
     }, []);
 
-    // Rendu de la minimap
+    // Rendu de la minimap (à implémenter complètement)
     const renderMiniMap = () => {
         return (
             <div className="absolute bottom-4 right-4 w-40 h-40 border border-gray-200 bg-white shadow-md rounded-lg overflow-hidden z-10">
@@ -734,7 +846,7 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
                             </svg>
                         </button>
 
-                        {selectedNode && (
+                        {selectedNode && typeof selectedNode !== 'string' && !String(selectedNode).startsWith('U') && (
                             <>
                                 <div className="w-px h-6 bg-gray-200 self-center"></div>
 
@@ -782,7 +894,7 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={isFullscreen
                                     ? "M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"
-                                    : "M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+                                    : "M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
                                 } />
                             </svg>
                         </button>
