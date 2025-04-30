@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import memberService, { Member, MemberFormData } from '../../services/memberService';
 import relationService, { RelationType } from '../../services/relationService';
 import { useFamily } from '../../contexts/FamilyContext';
+import { random } from 'lodash';
 
 interface AddMemberFormProps {
     isOpen: boolean;
@@ -14,25 +15,25 @@ interface AddMemberFormProps {
 }
 
 interface FormData extends MemberFormData {
-    photo: File | null;
-    photoUrl: string;
+    photo: File |string |null;
+    // photoUrl: string;
     fatherId: string;
     motherId: string;
     spouseId: string;
 }
 
 const initialFormData: FormData = {
-    familyId: 0,
-    firstName: '',
-    lastName: '',
-    birthDate: '',
-    deathDate: '',
-    birthPlace: '',
+    family: 0,
+    first_name: '',
+    last_name: '',
+    birth_date: '',
+    death_date: '',
+    birth_place: '',
     occupation: '',
     bio: '',
     gender: 'male',
-    photo: null,
-    photoUrl: '',
+    photo: null,  // Initialisé à null
+    // photoUrl: '',  // Supprimez cette ligne
     fatherId: '',
     motherId: '',
     spouseId: ''
@@ -85,19 +86,19 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
         if (formData.fatherId) {
             const father = fathers.find(f => f.id.toString() === formData.fatherId);
             if (father) {
-                setFatherSearchTerm(`${father.firstName || ''} ${father.lastName || ''}`.trim());
+                setFatherSearchTerm(`${father.first_name || ''} ${father.last_name || ''}`.trim());
             }
         }
         if (formData.motherId) {
             const mother = mothers.find(m => m.id.toString() === formData.motherId);
             if (mother) {
-                setMotherSearchTerm(`${mother.firstName || ''} ${mother.lastName || ''}`.trim());
+                setMotherSearchTerm(`${mother.first_name || ''} ${mother.last_name || ''}`.trim());
             }
         }
         if (formData.spouseId) {
             const spouse = spouses.find(s => s.id.toString() === formData.spouseId);
             if (spouse) {
-                setSpouseSearchTerm(`${spouse.firstName || ''} ${spouse.lastName || ''}`.trim());
+                setSpouseSearchTerm(`${spouse.first_name || ''} ${spouse.last_name || ''}`.trim());
             }
         }
     }, [members, formData.fatherId, formData.motherId, formData.spouseId]);
@@ -120,7 +121,7 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
 
             // Ajouter l'ID de la famille sélectionnée
             if (selectedFamily) {
-                newFormData.familyId = selectedFamily.id;
+                newFormData.family = selectedFamily.id;
             }
 
             // Préremplir avec les relations initiales
@@ -129,10 +130,10 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                 if (parentMember) {
                     if (parentMember.gender === 'male') {
                         newFormData.fatherId = initialParentId.toString();
-                        setFatherSearchTerm(`${parentMember.firstName || ''} ${parentMember.lastName || ''}`.trim());
+                        setFatherSearchTerm(`${parentMember.first_name || ''} ${parentMember.last_name || ''}`.trim());
                     } else if (parentMember.gender === 'female') {
                         newFormData.motherId = initialParentId.toString();
-                        setMotherSearchTerm(`${parentMember.firstName || ''} ${parentMember.lastName || ''}`.trim());
+                        setMotherSearchTerm(`${parentMember.first_name || ''} ${parentMember.last_name || ''}`.trim());
                     }
                 }
             }
@@ -141,7 +142,7 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                 newFormData.spouseId = initialSpouseId.toString();
                 const spouseMember = members.find(m => m.id === initialSpouseId);
                 if (spouseMember) {
-                    setSpouseSearchTerm(`${spouseMember.firstName || ''} ${spouseMember.lastName || ''}`.trim());
+                    setSpouseSearchTerm(`${spouseMember.first_name || ''} ${spouseMember.last_name || ''}`.trim());
                 }
             }
 
@@ -196,23 +197,19 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
         }));
     };
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             setFormData(prev => ({ ...prev, photo: file }));
+            
+            // Prévisualiser la photo
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImagePreview(reader.result as string);
             };
             reader.readAsDataURL(file);
-
-            try {
-                // Simule l'upload de l'image et récupère une URL (sera remplacé par un vrai upload plus tard)
-                const photoUrl = await memberService.uploadPhoto(file);
-                setFormData(prev => ({ ...prev, photoUrl }));
-            } catch (err) {
-                console.error('Erreur lors du téléchargement de la photo:', err);
-            }
+            
+            // Ne pas essayer d'uploader la photo maintenant - ça sera fait lors de la création du membre
         } else {
             setFormData(prev => ({ ...prev, photo: null, photoUrl: '' }));
             setImagePreview(null);
@@ -232,7 +229,7 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
 
         // Validation pour l'étape 1
         if (currentStep === 1) {
-            if (!formData.firstName?.trim()) {
+            if (!formData.first_name?.trim()) {
                 setError('Le prénom est requis pour continuer');
                 return;
             }
@@ -278,7 +275,7 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
         setIsSubmitting(true);
         setError(null);
 
-        if (!formData.firstName?.trim()) {
+        if (!formData.first_name?.trim()) {
             setError('Le prénom est requis');
             setIsSubmitting(false);
             return;
@@ -291,22 +288,38 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
         }
 
         try {
-            // Préparation des données du membre
+            setIsSubmitting(true);
+            setError(null);
+            
+            // Préparation des données du membre - SANS la photo
             const memberData: MemberFormData = {
-                familyId: selectedFamily?.id || 0,
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                birthDate: formData.birthDate,
-                birthPlace: formData.birthPlace || '',
-                deathDate: formData.deathDate || undefined,
+                family: selectedFamily?.id || 0,
+                first_name: formData.first_name,
+                last_name: formData.last_name,
+                birth_date: formData.birth_date,
+                birth_place: formData.birth_place || '',
+                death_date: formData.death_date || undefined,
                 gender: formData.gender as 'male' | 'female' | 'other',
                 occupation: formData.occupation || '',
                 bio: formData.bio || '',
-                photoUrl: formData.photoUrl || 'https://randomuser.me/api/portraits/lego/1.jpg' // Image par défaut
+                // Ne pas inclure la photo ici
             };
-
-            // Créer le nouveau membre
-            const newMember = await memberService.createMember(memberData);
+            
+            // 1. Créer le nouveau membre sans photo
+            let newMember = await memberService.createMember(memberData);
+            
+            // 2. Si une photo a été sélectionnée, l'uploader séparément
+            if (formData.photo instanceof File) {
+                try {
+                    await memberService.uploadPhoto(Number(newMember.id), formData.photo);
+                    // Rafraîchir les données du membre après upload de la photo
+                    newMember = await memberService.getMember(Number(newMember.id));
+                } catch (photoError) {
+                    console.error('Erreur lors du téléchargement de la photo:', photoError);
+                    // Continuer même si l'upload de la photo échoue
+                }
+            }
+            
 
             // Préparation des relations à créer
             const relationPromises = [];
@@ -315,9 +328,9 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
             if (formData.fatherId) {
                 relationPromises.push(
                     relationService.createRelation({
-                        familyId: selectedFamily?.id || 0,
-                        sourceId: parseInt(formData.fatherId),
-                        targetId: newMember.id,
+                        family: selectedFamily?.id || 0,
+                        source: parseInt(formData.fatherId),
+                        target: newMember.id,
                         type: RelationType.PARENT
                     })
                 );
@@ -327,9 +340,9 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
             if (formData.motherId) {
                 relationPromises.push(
                     relationService.createRelation({
-                        familyId: selectedFamily?.id || 0,
-                        sourceId: parseInt(formData.motherId),
-                        targetId: newMember.id,
+                        family: selectedFamily?.id || 0,
+                        source: parseInt(formData.motherId),
+                        target: newMember.id,
                         type: RelationType.PARENT
                     })
                 );
@@ -339,9 +352,9 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
             if (formData.spouseId) {
                 relationPromises.push(
                     relationService.createRelation({
-                        familyId: selectedFamily?.id || 0,
-                        sourceId: newMember.id,
-                        targetId: parseInt(formData.spouseId),
+                        family: selectedFamily?.id || 0,
+                        source: newMember.id,
+                        target: parseInt(formData.spouseId),
                         type: RelationType.SPOUSE
                     })
                 );
@@ -530,10 +543,10 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                         <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             {/* Prénom */}
                                             <div className="space-y-1">
-                                                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">Prénom *</label>
+                                                <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">Prénom *</label>
                                                 <input
-                                                    type="text" id="firstName" name="firstName" required
-                                                    value={formData.firstName} onChange={handleInputChange}
+                                                    type="text" id="first_name" name="first_name" required
+                                                    value={formData.first_name} onChange={handleInputChange}
                                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2.5 px-3 text-gray-800 placeholder-gray-400 text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all"
                                                     placeholder="Ex: Jean"
                                                 />
@@ -541,10 +554,10 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
 
                                             {/* Nom */}
                                             <div className="space-y-1">
-                                                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">Nom</label>
+                                                <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">Nom</label>
                                                 <input
-                                                    type="text" id="lastName" name="lastName"
-                                                    value={formData.lastName} onChange={handleInputChange}
+                                                    type="text" id="last_name" name="last_name"
+                                                    value={formData.last_name} onChange={handleInputChange}
                                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2.5 px-3 text-gray-800 placeholder-gray-400 text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all"
                                                     placeholder="Ex: Dupont"
                                                 />
@@ -567,30 +580,30 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
 
                                             {/* Date de Naissance */}
                                             <div className="space-y-1">
-                                                <label htmlFor="birthDate" className="block text-sm font-medium text-gray-700">Date de naissance</label>
+                                                <label htmlFor="birth_date" className="block text-sm font-medium text-gray-700">Date de naissance</label>
                                                 <input
-                                                    type="date" id="birthDate" name="birthDate"
-                                                    value={formData.birthDate} onChange={handleInputChange}
+                                                    type="date" id="birth_date" name="birth_date"
+                                                    value={formData.birth_date} onChange={handleInputChange}
                                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2.5 px-3 text-gray-800 text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all"
                                                 />
                                             </div>
 
                                             {/* Date de Décès */}
                                             <div className="space-y-1">
-                                                <label htmlFor="deathDate" className="block text-sm font-medium text-gray-700">Date de décès</label>
+                                                <label htmlFor="death_date" className="block text-sm font-medium text-gray-700">Date de décès</label>
                                                 <input
-                                                    type="date" id="deathDate" name="deathDate"
-                                                    value={formData.deathDate} onChange={handleInputChange}
+                                                    type="date" id="death_date" name="death_date"
+                                                    value={formData.death_date} onChange={handleInputChange}
                                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2.5 px-3 text-gray-800 text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all"
                                                 />
                                             </div>
 
                                             {/* Lieu de Naissance */}
                                             <div className="space-y-1">
-                                                <label htmlFor="birthPlace" className="block text-sm font-medium text-gray-700">Lieu de naissance</label>
+                                                <label htmlFor="birth_place" className="block text-sm font-medium text-gray-700">Lieu de naissance</label>
                                                 <input
-                                                    type="text" id="birthPlace" name="birthPlace"
-                                                    value={formData.birthPlace} onChange={handleInputChange}
+                                                    type="text" id="birth_place" name="birth_place"
+                                                    value={formData.birth_place} onChange={handleInputChange}
                                                     className="w-full bg-gray-50 border border-gray-200 rounded-lg py-2.5 px-3 text-gray-800 placeholder-gray-400 text-sm focus:outline-none focus:ring-1 focus:ring-black focus:border-black transition-all"
                                                     placeholder="Ex: Paris, France"
                                                 />
@@ -683,7 +696,7 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                             if (e.target.value) {
                                                                 setFilteredFathers(
                                                                     fathers.filter(member =>
-                                                                        `${member.firstName || ''} ${member.lastName || ''}`.toLowerCase().includes(e.target.value.toLowerCase())
+                                                                        `${member.first_name || ''} ${member.last_name || ''}`.toLowerCase().includes(e.target.value.toLowerCase())
                                                                     )
                                                                 );
                                                             } else {
@@ -737,15 +750,15 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                                                 className="flex items-center p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                                                                                 onClick={() => {
                                                                                     setFormData({...formData, fatherId: father.id.toString()});
-                                                                                    setFatherSearchTerm(`${father.firstName || ''} ${father.lastName || ''}`.trim());
+                                                                                    setFatherSearchTerm(`${father.first_name || ''} ${father.last_name || ''}`.trim());
                                                                                     setShowFatherResults(false);
                                                                                 }}
                                                                             >
                                                                                 <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gray-200 mr-2">
-                                                                                    {father.photoUrl ? (
+                                                                                    {father.photo ? (
                                                                                         <img
-                                                                                            src={father.photoUrl}
-                                                                                            alt={father.firstName || 'Photo'}
+                                                                                            src={father.photo}
+                                                                                            alt={father.first_name || 'Photo'}
                                                                                             className="w-full h-full object-cover"
                                                                                             onError={(e) => {
                                                                                                 const target = e.target as HTMLImageElement;
@@ -755,16 +768,16 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                                                         />
                                                                                     ) : (
                                                                                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                                                                                            {father.firstName ? father.firstName.charAt(0).toUpperCase() : ''}
-                                                                                            {father.lastName ? father.lastName.charAt(0).toUpperCase() : ''}
+                                                                                            {father.first_name ? father.first_name.charAt(0).toUpperCase() : ''}
+                                                                                            {father.last_name ? father.last_name.charAt(0).toUpperCase() : ''}
                                                                                         </div>
                                                                                     )}
                                                                                 </div>
                                                                                 <div>
-                                                                                    <div className="font-medium">{father.firstName || ''} {father.lastName || ''}</div>
-                                                                                    {father.birthDate && (
+                                                                                    <div className="font-medium">{father.first_name || ''} {father.last_name || ''}</div>
+                                                                                    {father.birth_date && (
                                                                                         <div className="text-xs text-gray-500">
-                                                                                            Né en {new Date(father.birthDate).getFullYear()}
+                                                                                            Né en {new Date(father.birth_date).getFullYear()}
                                                                                         </div>
                                                                                     )}
                                                                                 </div>
@@ -805,9 +818,9 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                         {fathers.find(f => f.id.toString() === formData.fatherId) && (
                                                             <div className="flex items-center p-2 bg-blue-50 border border-blue-100 rounded-md">
                                                                 <div className="w-8 h-8 rounded-full overflow-hidden bg-white mr-2">
-                                                                    {fathers.find(f => f.id.toString() === formData.fatherId)?.photoUrl ? (
+                                                                    {fathers.find(f => f.id.toString() === formData.fatherId)?.photo ? (
                                                                         <img
-                                                                            src={fathers.find(f => f.id.toString() === formData.fatherId)?.photoUrl || ''}
+                                                                            src={fathers.find(f => f.id.toString() === formData.fatherId)?.photo || ''}
                                                                             alt="Père sélectionné"
                                                                             className="w-full h-full object-cover"
                                                                             onError={(e) => {
@@ -818,16 +831,16 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                                         />
                                                                     ) : (
                                                                         <div className="w-full h-full flex items-center justify-center text-blue-600 text-xs">
-                                                                            {fathers.find(f => f.id.toString() === formData.fatherId)?.firstName?.charAt(0) || ''}
-                                                                            {fathers.find(f => f.id.toString() === formData.fatherId)?.lastName?.charAt(0) || ''}
+                                                                            {fathers.find(f => f.id.toString() === formData.fatherId)?.first_name?.charAt(0) || ''}
+                                                                            {fathers.find(f => f.id.toString() === formData.fatherId)?.last_name?.charAt(0) || ''}
                                                                         </div>
                                                                     )}
                                                                 </div>
                                                                 <div>
                                                                     <div className="font-medium text-blue-800">
-                                                                        {fathers.find(f => f.id.toString() === formData.fatherId)?.firstName || ''}
+                                                                        {fathers.find(f => f.id.toString() === formData.fatherId)?.first_name || ''}
                                                                         {' '}
-                                                                        {fathers.find(f => f.id.toString() === formData.fatherId)?.lastName || ''}
+                                                                        {fathers.find(f => f.id.toString() === formData.fatherId)?.last_name || ''}
                                                                     </div>
                                                                     <div className="text-xs text-blue-600">Père sélectionné</div>
                                                                 </div>
@@ -870,7 +883,7 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                             if (e.target.value) {
                                                                 setFilteredMothers(
                                                                     mothers.filter(member =>
-                                                                        `${member.firstName || ''} ${member.lastName || ''}`.toLowerCase().includes(e.target.value.toLowerCase())
+                                                                        `${member.first_name || ''} ${member.last_name || ''}`.toLowerCase().includes(e.target.value.toLowerCase())
                                                                     )
                                                                 );
                                                             } else {
@@ -923,15 +936,15 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                                                 className="flex items-center p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                                                                                 onClick={() => {
                                                                                     setFormData({...formData, motherId: mother.id.toString()});
-                                                                                    setMotherSearchTerm(`${mother.firstName || ''} ${mother.lastName || ''}`.trim());
+                                                                                    setMotherSearchTerm(`${mother.first_name || ''} ${mother.last_name || ''}`.trim());
                                                                                     setShowMotherResults(false);
                                                                                 }}
                                                                             >
                                                                                 <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gray-200 mr-2">
-                                                                                    {mother.photoUrl ? (
+                                                                                    {mother.photo ? (
                                                                                         <img
-                                                                                            src={mother.photoUrl}
-                                                                                            alt={mother.firstName || 'Photo'}
+                                                                                            src={mother.photo}
+                                                                                            alt={mother.first_name || 'Photo'}
                                                                                             className="w-full h-full object-cover"
                                                                                             onError={(e) => {
                                                                                                 const target = e.target as HTMLImageElement;
@@ -941,16 +954,16 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                                                         />
                                                                                     ) : (
                                                                                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                                                                                            {mother.firstName ? mother.firstName.charAt(0).toUpperCase() : ''}
-                                                                                            {mother.lastName ? mother.lastName.charAt(0).toUpperCase() : ''}
+                                                                                            {mother.first_name ? mother.first_name.charAt(0).toUpperCase() : ''}
+                                                                                            {mother.last_name ? mother.last_name.charAt(0).toUpperCase() : ''}
                                                                                         </div>
                                                                                     )}
                                                                                 </div>
                                                                                 <div>
-                                                                                    <div className="font-medium">{mother.firstName || ''} {mother.lastName || ''}</div>
-                                                                                    {mother.birthDate && (
+                                                                                    <div className="font-medium">{mother.first_name || ''} {mother.last_name || ''}</div>
+                                                                                    {mother.birth_date && (
                                                                                         <div className="text-xs text-gray-500">
-                                                                                            Née en {new Date(mother.birthDate).getFullYear()}
+                                                                                            Née en {new Date(mother.birth_date).getFullYear()}
                                                                                         </div>
                                                                                     )}
                                                                                 </div>
@@ -991,9 +1004,9 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                         {mothers.find(m => m.id.toString() === formData.motherId) && (
                                                             <div className="flex items-center p-2 bg-pink-50 border border-pink-100 rounded-md">
                                                                 <div className="w-8 h-8 rounded-full overflow-hidden bg-white mr-2">
-                                                                    {mothers.find(m => m.id.toString() === formData.motherId)?.photoUrl ? (
+                                                                    {mothers.find(m => m.id.toString() === formData.motherId)?.photo ? (
                                                                         <img
-                                                                            src={mothers.find(m => m.id.toString() === formData.motherId)?.photoUrl || ''}
+                                                                            src={mothers.find(m => m.id.toString() === formData.motherId)?.photo || ''}
                                                                             alt="Mère sélectionnée"
                                                                             className="w-full h-full object-cover"
                                                                             onError={(e) => {
@@ -1004,16 +1017,16 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                                         />
                                                                     ) : (
                                                                         <div className="w-full h-full flex items-center justify-center text-pink-600 text-xs">
-                                                                            {mothers.find(m => m.id.toString() === formData.motherId)?.firstName?.charAt(0) || ''}
-                                                                            {mothers.find(m => m.id.toString() === formData.motherId)?.lastName?.charAt(0) || ''}
+                                                                            {mothers.find(m => m.id.toString() === formData.motherId)?.first_name?.charAt(0) || ''}
+                                                                            {mothers.find(m => m.id.toString() === formData.motherId)?.last_name?.charAt(0) || ''}
                                                                         </div>
                                                                     )}
                                                                 </div>
                                                                 <div>
                                                                     <div className="font-medium text-pink-800">
-                                                                        {mothers.find(m => m.id.toString() === formData.motherId)?.firstName || ''}
+                                                                        {mothers.find(m => m.id.toString() === formData.motherId)?.first_name || ''}
                                                                         {' '}
-                                                                        {mothers.find(m => m.id.toString() === formData.motherId)?.lastName || ''}
+                                                                        {mothers.find(m => m.id.toString() === formData.motherId)?.last_name || ''}
                                                                     </div>
                                                                     <div className="text-xs text-pink-600">Mère sélectionnée</div>
                                                                 </div>
@@ -1062,7 +1075,7 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                             if (e.target.value) {
                                                                 setFilteredSpouses(
                                                                     spouses.filter(member =>
-                                                                        `${member.firstName || ''} ${member.lastName || ''}`.toLowerCase().includes(e.target.value.toLowerCase())
+                                                                        `${member.first_name || ''} ${member.last_name || ''}`.toLowerCase().includes(e.target.value.toLowerCase())
                                                                     )
                                                                 );
                                                             } else {
@@ -1115,15 +1128,15 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                                                 className="flex items-center p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                                                                                 onClick={() => {
                                                                                     setFormData({...formData, spouseId: spouse.id.toString()});
-                                                                                    setSpouseSearchTerm(`${spouse.firstName || ''} ${spouse.lastName || ''}`.trim());
+                                                                                    setSpouseSearchTerm(`${spouse.first_name || ''} ${spouse.last_name || ''}`.trim());
                                                                                     setShowSpouseResults(false);
                                                                                 }}
                                                                             >
                                                                                 <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gray-200 mr-2">
-                                                                                    {spouse.photoUrl ? (
+                                                                                    {spouse.photo ? (
                                                                                         <img
-                                                                                            src={spouse.photoUrl}
-                                                                                            alt={spouse.firstName || 'Photo'}
+                                                                                            src={spouse.photo}
+                                                                                            alt={spouse.first_name || 'Photo'}
                                                                                             className="w-full h-full object-cover"
                                                                                             onError={(e) => {
                                                                                                 const target = e.target as HTMLImageElement;
@@ -1133,13 +1146,13 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                                                         />
                                                                                     ) : (
                                                                                         <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                                                                                            {spouse.firstName ? spouse.firstName.charAt(0).toUpperCase() : ''}
-                                                                                            {spouse.lastName ? spouse.lastName.charAt(0).toUpperCase() : ''}
+                                                                                            {spouse.first_name ? spouse.first_name.charAt(0).toUpperCase() : ''}
+                                                                                            {spouse.last_name ? spouse.last_name.charAt(0).toUpperCase() : ''}
                                                                                         </div>
                                                                                     )}
                                                                                 </div>
                                                                                 <div>
-                                                                                    <div className="font-medium">{spouse.firstName || ''} {spouse.lastName || ''}</div>
+                                                                                    <div className="font-medium">{spouse.first_name || ''} {spouse.last_name || ''}</div>
                                                                                     <div className="text-xs text-gray-500 flex items-center">
                                                                                         {spouse.gender === 'male' ? (
                                                                                             <>
@@ -1163,7 +1176,7 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                                                                 Autre
                                                                                             </>
                                                                                         )}
-                                                                                        {spouse.birthDate && ` • ${new Date(spouse.birthDate).getFullYear()}`}
+                                                                                        {spouse.birth_date && ` • ${new Date(spouse.birth_date).getFullYear()}`}
                                                                                     </div>
                                                                                 </div>
                                                                                 {formData.spouseId === spouse.id.toString() && (
@@ -1203,9 +1216,9 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                         {spouses.find(s => s.id.toString() === formData.spouseId) && (
                                                             <div className="flex items-center p-2 bg-purple-50 border border-purple-100 rounded-md">
                                                                 <div className="w-8 h-8 rounded-full overflow-hidden bg-white mr-2">
-                                                                    {spouses.find(s => s.id.toString() === formData.spouseId)?.photoUrl ? (
+                                                                    {spouses.find(s => s.id.toString() === formData.spouseId)?.photo ? (
                                                                         <img
-                                                                            src={spouses.find(s => s.id.toString() === formData.spouseId)?.photoUrl || ''}
+                                                                            src={spouses.find(s => s.id.toString() === formData.spouseId)?.photo || ''}
                                                                             alt="Conjoint sélectionné"
                                                                             className="w-full h-full object-cover"
                                                                             onError={(e) => {
@@ -1216,16 +1229,16 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                                         />
                                                                     ) : (
                                                                         <div className="w-full h-full flex items-center justify-center text-purple-600 text-xs">
-                                                                            {spouses.find(s => s.id.toString() === formData.spouseId)?.firstName?.charAt(0) || ''}
-                                                                            {spouses.find(s => s.id.toString() === formData.spouseId)?.lastName?.charAt(0) || ''}
+                                                                            {spouses.find(s => s.id.toString() === formData.spouseId)?.first_name?.charAt(0) || ''}
+                                                                            {spouses.find(s => s.id.toString() === formData.spouseId)?.last_name?.charAt(0) || ''}
                                                                         </div>
                                                                     )}
                                                                 </div>
                                                                 <div>
                                                                     <div className="font-medium text-purple-800">
-                                                                        {spouses.find(s => s.id.toString() === formData.spouseId)?.firstName || ''}
+                                                                        {spouses.find(s => s.id.toString() === formData.spouseId)?.first_name || ''}
                                                                         {' '}
-                                                                        {spouses.find(s => s.id.toString() === formData.spouseId)?.lastName || ''}
+                                                                        {spouses.find(s => s.id.toString() === formData.spouseId)?.last_name || ''}
                                                                     </div>
                                                                     <div className="text-xs text-purple-600">
                                                                         {spouses.find(s => s.id.toString() === formData.spouseId)?.gender === 'male' ? 'Époux' :
@@ -1286,9 +1299,9 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                         </svg>
                                                         <span>
                                                             <span className="font-medium">
-                                                                {fathers.find(f => f.id.toString() === formData.fatherId)?.firstName || ''}
+                                                                {fathers.find(f => f.id.toString() === formData.fatherId)?.first_name || ''}
                                                                 {' '}
-                                                                {fathers.find(f => f.id.toString() === formData.fatherId)?.lastName || ''}
+                                                                {fathers.find(f => f.id.toString() === formData.fatherId)?.last_name || ''}
                                                             </span>
                                                             {' '}sera défini comme père
                                                         </span>
@@ -1301,9 +1314,9 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                         </svg>
                                                         <span>
                                                             <span className="font-medium">
-                                                                {mothers.find(m => m.id.toString() === formData.motherId)?.firstName || ''}
+                                                                {mothers.find(m => m.id.toString() === formData.motherId)?.first_name || ''}
                                                                 {' '}
-                                                                {mothers.find(m => m.id.toString() === formData.motherId)?.lastName || ''}
+                                                                {mothers.find(m => m.id.toString() === formData.motherId)?.last_name || ''}
                                                             </span>
                                                             {' '}sera définie comme mère
                                                         </span>
@@ -1316,9 +1329,9 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                                         </svg>
                                                         <span>
                                                             <span className="font-medium">
-                                                                {spouses.find(s => s.id.toString() === formData.spouseId)?.firstName || ''}
+                                                                {spouses.find(s => s.id.toString() === formData.spouseId)?.first_name || ''}
                                                                 {' '}
-                                                                {spouses.find(s => s.id.toString() === formData.spouseId)?.lastName || ''}
+                                                                {spouses.find(s => s.id.toString() === formData.spouseId)?.last_name || ''}
                                                             </span>
                                                             {' '}sera défini(e) comme
                                                             {spouses.find(s => s.id.toString() === formData.spouseId)?.gender === 'male' ? ' époux' :

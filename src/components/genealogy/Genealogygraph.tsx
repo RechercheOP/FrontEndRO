@@ -53,8 +53,8 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
         const childToParents = new Map<number, number[]>();
         relations.forEach(rel => {
             if (rel.type === 'parent') {
-                const childId = Number(rel.targetId);
-                const parentId = Number(rel.sourceId);
+                const childId = Number(rel.target);
+                const parentId = Number(rel.source);
                 if (!childToParents.has(childId)) childToParents.set(childId, []);
                 childToParents.get(childId)!.push(parentId);
             }
@@ -132,8 +132,8 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
         const processedSpousePairs = new Set<string>();
         relations.forEach(rel => {
             if (rel.type === 'spouse') {
-                const id1 = Number(rel.sourceId);
-                const id2 = Number(rel.targetId);
+                const id1 = Number(rel.source);
+                const id2 = Number(rel.target);
                 const sortedIds = [id1, id2].sort((a, b) => a - b);
                 const pairKey = sortedIds.join('-');
 
@@ -174,17 +174,17 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
         // --- Construction des nœuds ---
         const nodesData: Node[] = [];
         members.forEach(member => {
-            const fullName = `${member.firstName || ''} ${member.lastName || ''}`.trim();
-            const birthYear = member.birthDate ? member.birthDate.substring(0, 4) : '?';
-            const deathYear = member.deathDate ? member.deathDate.substring(0, 4) : '';
+            const fullName = `${member.first_name || ''} ${member.last_name || ''}`.trim();
+            const birthYear = member.birth_date ? member.birth_date.substring(0, 4) : '?';
+            const deathYear = member.death_date ? member.death_date.substring(0, 4) : '';
             const label = fullName + (deathYear
                 ? `\n(${birthYear}-${deathYear})`
-                : `\n(${birthYear}${member.birthDate ? '-' : ''})`);
+                : `\n(${birthYear}${member.birth_date ? '-' : ''})`);
             nodesData.push({
                 id: member.id,
                 label,
                 shape: 'circularImage',
-                image: member.photoUrl || 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png', // Fallback image
+                image: member.photo_url || 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png', // Fallback image
                 borderWidth: 2,
                 size: 45,
                 level: levels.get(Number(member.id)),
@@ -303,16 +303,16 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
         const spousePairsDone = new Set<string>();
         relations.forEach(rel => {
             if (rel.type === 'spouse') {
-                const id1 = Number(rel.sourceId);
-                const id2 = Number(rel.targetId);
+                const id1 = Number(rel.source);
+                const id2 = Number(rel.target);
                 const key = [id1, id2].sort((a, b) => a - b).join('-');
                 if (!unionNodeMap.has(key) && !spousePairsDone.has(key)) {
                     edgesData.push({
                         id: `S${id1}-${id2}`,
                         from: id1,
                         to: id2,
-                        color: { color: '#e67e22' },
-                        width: 1.5,
+                        color: { color: '#DA065BFF' },
+                        width: 2,
                         dashes: true,
                         label: 'conjoints',
                         arrows: {},
@@ -430,8 +430,8 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
         const parentToChildren = new Map<number, number[]>();
         relations.forEach(rel => {
             if (rel.type === 'parent') {
-                const parentId = Number(rel.sourceId);
-                const childId = Number(rel.targetId);
+                const parentId = Number(rel.source);
+                const childId = Number(rel.target);
                 if (!parentToChildren.has(parentId)) parentToChildren.set(parentId, []);
                 parentToChildren.get(parentId)!.push(childId);
             }
@@ -591,8 +591,8 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
                 // Arête conjoint
                 edges.update({
                     id: edge.id,
-                    width: 1.5,
-                    color: { color: '#e67e22' }
+                    width: 2,
+                    color: { color: '#E90372FF',highlight:'#E90372FF',hover:'#E90372FF' }
                 });
             } else {
                 // Autre type d'arête

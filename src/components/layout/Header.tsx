@@ -52,7 +52,7 @@ const Header = ({ toggleSidebar, isSidebarCollapsed, onCreateFamilyClick }: Head
                     {/* Famille sélectionnée */}
                     {selectedFamily && (
                         <div className="hidden md:flex items-center bg-gray-50 rounded-lg px-4 py-2 border border-gray-100">
-                            <Link to="/families" className="flex items-center gap-2 hover:text-gray-700 transition-colors">
+                            <Link to="/app/families" className="flex items-center gap-2 hover:text-gray-700 transition-colors">
                                 <div className="w-6 h-6 bg-black rounded-full flex items-center justify-center text-white text-xs">
                                     F
                                 </div>
@@ -86,7 +86,7 @@ const Header = ({ toggleSidebar, isSidebarCollapsed, onCreateFamilyClick }: Head
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                             </svg>
                         </button>
-                        <Link to="/families" className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                        <Link to="/app/families" className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                             </svg>
@@ -113,7 +113,7 @@ const Header = ({ toggleSidebar, isSidebarCollapsed, onCreateFamilyClick }: Head
                                 </div>
                                 <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Mon profil</Link>
                                 <Link to="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Paramètres</Link>
-                                <Link to="/families" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Gérer les familles</Link>
+                                <Link to="/app/families" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Gérer les familles</Link>
                                 <Link to="/help" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Aide</Link>
                                 <hr className="my-1 border-gray-100" />
                                 <Link to="/logout" className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Déconnexion</Link>

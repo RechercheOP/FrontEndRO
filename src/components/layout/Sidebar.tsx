@@ -52,7 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onCreateF
     const familyStats = {
         totalMembers: members.length,
         generations: selectedFamily ? 4 : 0,
-        lastUpdate: selectedFamily ? new Date(selectedFamily.updatedAt).toLocaleDateString() : "-"
+        lastUpdate: selectedFamily ? new Date(selectedFamily.updated_at).toLocaleDateString() : "-"
     };
 
     return (
@@ -104,13 +104,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onCreateF
                                 </svg>
                             </button>
                             {/* Icône Famille */}
-                            <Link to="/families" className="p-3 rounded-xl bg-gray-700 hover:bg-gray-600 transition-colors" title="Gérer les familles">
+                            <Link to="/app/families" className="p-3 rounded-xl bg-gray-700 hover:bg-gray-600 transition-colors" title="Gérer les familles">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                 </svg>
                             </Link>
                             {/* Icône Statistiques */}
-                            <Link to="/statistics" className="p-3 rounded-xl bg-gray-700 hover:bg-gray-600 transition-colors" title="Statistiques">
+                            <Link to="/app/statistics" className="p-3 rounded-xl bg-gray-700 hover:bg-gray-600 transition-colors" title="Statistiques">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                 </svg>
@@ -138,7 +138,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onCreateF
                                     <div className="flex justify-between items-center mb-3">
                                         <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Famille</h2>
                                         <Link
-                                            to="/families"
+                                            to="/app/families"
                                             className="text-xs text-gray-400 hover:text-white transition-colors"
                                         >
                                             Voir toutes
@@ -173,7 +173,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onCreateF
                                             <div className="bg-gray-800/50 rounded-lg p-4 text-center">
                                                 <p className="text-gray-400 text-sm mb-3">Aucune famille sélectionnée</p>
                                                 <Link
-                                                    to="/families"
+                                                    to="/app/families"
                                                     className="inline-flex items-center justify-center w-full bg-white text-black py-2 px-4 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
                                                 >
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -211,7 +211,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onCreateF
                                     </button>
 
                                     <Link
-                                        to="/families"
+                                        to="/app/families"
                                         className="w-full flex items-center justify-center bg-gray-700 text-white py-3 px-4 rounded-xl text-sm font-medium hover:bg-gray-600 transition-colors"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -221,7 +221,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onCreateF
                                     </Link>
 
                                     <Link
-                                        to="/statistics"
+                                        to="/app/statistics"
                                         className="w-full flex items-center justify-center bg-gray-700 text-white py-3 px-4 rounded-xl text-sm font-medium hover:bg-gray-600 transition-colors"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -245,22 +245,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onCreateF
                                                     whileHover={{ x: 5 }}
                                                 >
                                                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-700 mr-3">
-                                                        {member.photoUrl ? (
+                                                        {member.photo ? (
                                                             <img
-                                                                src={member.photoUrl}
-                                                                alt={`${member.firstName} ${member.lastName}`}
+                                                                src={member.photo}
+                                                                alt={`${member.first_name} ${member.last_name}`}
                                                                 className="w-full h-full object-cover"
                                                             />
                                                         ) : (
                                                             <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                                                {member.firstName.charAt(0)}{member.lastName.charAt(0)}
+                                                                {member.first_name.charAt(0)}{member.last_name.charAt(0)}
                                                             </div>
                                                         )}
                                                     </div>
                                                     <div>
-                                                        <h3 className="font-medium text-white text-sm">{member.firstName} {member.lastName}</h3>
+                                                        <h3 className="font-medium text-white text-sm">{member.first_name} {member.last_name}</h3>
                                                         <p className="text-xs text-gray-400">
-                                                            {member.birthDate ? new Date(member.birthDate).getFullYear() : ''}
+                                                            {member.birth_date ? new Date(member.birth_date).getFullYear() : ''}
                                                             {member.occupation ? ` • ${member.occupation}` : ''}
                                                         </p>
                                                     </div>

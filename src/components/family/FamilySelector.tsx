@@ -33,7 +33,7 @@ const FamilySelector: React.FC<FamilySelectorProps> = ({ onCreateNewFamily }) =>
               {loadingFamilies ? 'Chargement...' : selectedFamily?.name || 'Sélectionnez une famille'}
             </span>
                         <span className="text-xs text-gray-500">
-              {selectedFamily ? `Dernière mise à jour : ${new Date(selectedFamily.updatedAt).toLocaleDateString()}` : 'Aucune famille sélectionnée'}
+              {selectedFamily ? `Dernière mise à jour : ${new Date(selectedFamily.updated_at).toLocaleDateString()}` : 'Aucune famille sélectionnée'}
             </span>
                     </div>
                 </div>

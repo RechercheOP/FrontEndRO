@@ -14,8 +14,8 @@ const FamilyStatistics: React.FC = () => {
         maleCount: members.filter(m => m.gender === 'male').length,
         femaleCount: members.filter(m => m.gender === 'female').length,
         otherCount: members.filter(m => m.gender === 'other').length,
-        living: members.filter(m => !m.deathDate).length,
-        deceased: members.filter(m => m.deathDate).length,
+        living: members.filter(m => !m.death_date).length,
+        deceased: members.filter(m => m.death_date).length,
         averageAge: calculateAverageAge(),
         oldestMember: findOldestMember(),
         youngestMember: findYoungestMember(),
@@ -28,10 +28,10 @@ const FamilyStatistics: React.FC = () => {
 
         const currentYear = new Date().getFullYear();
         const totalAge = members.reduce((sum, member) => {
-            if (!member.birthDate) return sum;
+            if (!member.birth_date) return sum;
 
-            const birthYear = new Date(member.birthDate).getFullYear();
-            const deathYear = member.deathDate ? new Date(member.deathDate).getFullYear() : currentYear;
+            const birthYear = new Date(member.birth_date).getFullYear();
+            const deathYear = member.death_date ? new Date(member.death_date).getFullYear() : currentYear;
             return sum + (deathYear - birthYear);
         }, 0);
 
@@ -43,8 +43,8 @@ const FamilyStatistics: React.FC = () => {
         if (members.length === 0) return null;
 
         return members.reduce((oldest, current) => {
-            if (!current.birthDate) return oldest;
-            if (!oldest || new Date(current.birthDate) < new Date(oldest.birthDate)) {
+            if (!current.birth_date) return oldest;
+            if (!oldest || new Date(current.birth_date) < new Date(oldest.birth_date)) {
                 return current;
             }
             return oldest;
@@ -56,8 +56,8 @@ const FamilyStatistics: React.FC = () => {
         if (members.length === 0) return null;
 
         return members.reduce((youngest, current) => {
-            if (!current.birthDate) return youngest;
-            if (!youngest || new Date(current.birthDate) > new Date(youngest.birthDate)) {
+            if (!current.birth_date) return youngest;
+            if (!youngest || new Date(current.birth_date) > new Date(youngest.birth_date)) {
                 return current;
             }
             return youngest;
@@ -77,9 +77,9 @@ const FamilyStatistics: React.FC = () => {
         const decades: {[key: string]: number} = {};
 
         members.forEach(member => {
-            if (!member.birthDate) return;
+            if (!member.birth_date) return;
 
-            const year = new Date(member.birthDate).getFullYear();
+            const year = new Date(member.birth_date).getFullYear();
             const decade = Math.floor(year / 10) * 10;
             const decadeLabel = `${decade}-${decade + 9}`;
 
@@ -269,27 +269,27 @@ const FamilyStatistics: React.FC = () => {
                     {stats.oldestMember && (
                         <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 flex items-center">
                             <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 mr-4">
-                                {stats.oldestMember.photoUrl ? (
+                                {stats.oldestMember.photo ? (
                                     <img
-                                        src={stats.oldestMember.photoUrl}
-                                        alt={stats.oldestMember.firstName}
+                                        src={stats.oldestMember.photo}
+                                        alt={stats.oldestMember.first_name}
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                        {stats.oldestMember.firstName.charAt(0)}
+                                        {stats.oldestMember.first_name.charAt(0)}
                                     </div>
                                 )}
                             </div>
                             <div>
                                 <div className="text-xs font-medium text-gray-500 mb-1">Membre le plus âgé</div>
                                 <div className="font-medium text-gray-800">
-                                    {stats.oldestMember.firstName} {stats.oldestMember.lastName}
+                                    {stats.oldestMember.first_name} {stats.oldestMember.last_name}
                                 </div>
-                                {stats.oldestMember.birthDate && (
+                                {stats.oldestMember.birth_date && (
                                     <div className="text-sm text-gray-600">
-                                        {new Date(stats.oldestMember.birthDate).toLocaleDateString()}
-                                        {stats.oldestMember.deathDate ? ` - ${new Date(stats.oldestMember.deathDate).toLocaleDateString()}` : ''}
+                                        {new Date(stats.oldestMember.birth_date).toLocaleDateString()}
+                                        {stats.oldestMember.death_date ? ` - ${new Date(stats.oldestMember.death_date).toLocaleDateString()}` : ''}
                                     </div>
                                 )}
                             </div>
@@ -300,26 +300,26 @@ const FamilyStatistics: React.FC = () => {
                     {stats.youngestMember && (
                         <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 flex items-center">
                             <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 mr-4">
-                                {stats.youngestMember.photoUrl ? (
+                                {stats.youngestMember.photo ? (
                                     <img
-                                        src={stats.youngestMember.photoUrl}
-                                        alt={stats.youngestMember.firstName}
+                                        src={stats.youngestMember.photo}
+                                        alt={stats.youngestMember.first_name}
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                        {stats.youngestMember.firstName.charAt(0)}
+                                        {stats.youngestMember.first_name.charAt(0)}
                                     </div>
                                 )}
                             </div>
                             <div>
                                 <div className="text-xs font-medium text-gray-500 mb-1">Membre le plus jeune</div>
                                 <div className="font-medium text-gray-800">
-                                    {stats.youngestMember.firstName} {stats.youngestMember.lastName}
+                                    {stats.youngestMember.first_name} {stats.youngestMember.last_name}
                                 </div>
-                                {stats.youngestMember.birthDate && (
+                                {stats.youngestMember.birth_date && (
                                     <div className="text-sm text-gray-600">
-                                        Né le {new Date(stats.youngestMember.birthDate).toLocaleDateString()}
+                                        Né le {new Date(stats.youngestMember.birth_date).toLocaleDateString()}
                                     </div>
                                 )}
                             </div>

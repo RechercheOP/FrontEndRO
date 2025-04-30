@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Member } from '../../services/memberService';
 import { Relation } from '../../services/relationService';
 import { useFamily } from '../../contexts/FamilyContext'; // Assurez-vous que ce chemin est correct
+import EditMemberForm from './EditMemberForm';
 
 interface MemberDetailModalProps {
     selectedMember: Member | null;
@@ -16,6 +17,8 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
     const { members, relations } = useFamily(); // Récupère les données du contexte FamilyContext
     const [activeTab, setActiveTab] = useState<'info' | 'relations'>('info');
     const [memberWithRelations, setMemberWithRelations] = useState<any>(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
 
     useEffect(() => {
         if (!selectedMember || !members || !relations) return;
@@ -29,8 +32,8 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
 
             // Parents = tous ceux qui ont une relation parent vers ce membre
             relations.forEach(rel => {
-                if (rel.type === 'parent' && Number(rel.targetId) === Number(selectedMember.id)) {
-                    const parent = members.find(m => Number(m.id) === Number(rel.sourceId));
+                if (rel.type === 'parent' && Number(rel.target) === Number(selectedMember.id)) {
+                    const parent = members.find(m => Number(m.id) === Number(rel.source));
                     if (parent && !parents.some(p => Number(p.id) === Number(parent.id))) {
                         parents.push(parent);
                     }
@@ -39,8 +42,8 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
 
             // Enfants = tous ceux qui ont une relation parent depuis ce membre
             relations.forEach(rel => {
-                if (rel.type === 'parent' && Number(rel.sourceId) === Number(selectedMember.id)) {
-                    const child = members.find(m => Number(m.id) === Number(rel.targetId));
+                if (rel.type === 'parent' && Number(rel.source) === Number(selectedMember.id)) {
+                    const child = members.find(m => Number(m.id) === Number(rel.target));
                     if (child && !children.some(c => Number(c.id) === Number(child.id))) {
                         children.push(child);
                     }
@@ -50,8 +53,8 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
             // Conjoints = tous ceux qui ont une relation spouse (dans les deux sens)
             relations.forEach(rel => {
                 if (rel.type === 'spouse' &&
-                    (Number(rel.sourceId) === Number(selectedMember.id) || Number(rel.targetId) === Number(selectedMember.id))) {
-                    const spouseId = Number(rel.sourceId) === Number(selectedMember.id) ? Number(rel.targetId) : Number(rel.sourceId);
+                    (Number(rel.source) === Number(selectedMember.id) || Number(rel.target) === Number(selectedMember.id))) {
+                    const spouseId = Number(rel.source) === Number(selectedMember.id) ? Number(rel.target) : Number(rel.source);
                     const spouse = members.find(m => Number(m.id) === spouseId);
                     if (spouse && !spouses.some(s => Number(s.id) === Number(spouse.id))) {
                         spouses.push(spouse);
@@ -68,8 +71,8 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
 
                     // Vérifier si ce membre a au moins un parent en commun
                     const siblingParents = relations
-                        .filter(rel => rel.type === 'parent' && Number(rel.targetId) === Number(potentialSibling.id))
-                        .map(rel => Number(rel.sourceId));
+                        .filter(rel => rel.type === 'parent' && Number(rel.target) === Number(potentialSibling.id))
+                        .map(rel => Number(rel.source));
 
                     const hasCommonParent = siblingParents.some(parentId => parentIds.includes(parentId));
 
@@ -108,20 +111,20 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
     }
 
     // Extraction des données
-    const fullName = `${selectedMember.firstName || ''} ${selectedMember.lastName || ''}`.trim();
-    const birthDate = selectedMember.birthDate ? new Date(selectedMember.birthDate).toLocaleDateString() : 'Inconnue';
-    const deathDate = selectedMember.deathDate ? new Date(selectedMember.deathDate).toLocaleDateString() : '';
-    const age = calculateAge(selectedMember.birthDate, selectedMember.deathDate);
+    const fullName = `${selectedMember.first_name || ''} ${selectedMember.last_name || ''}`.trim();
+    const birth_date = selectedMember.birth_date ? new Date(selectedMember.birth_date).toLocaleDateString() : 'Inconnue';
+    const death_date = selectedMember.death_date ? new Date(selectedMember.death_date).toLocaleDateString() : '';
+    const age = calculateAge(selectedMember.birth_date, selectedMember.death_date);
 
     // Fonction pour calculer l'âge
-    function calculateAge(birthDateStr: string | null, deathDateStr: string | null): string {
-        if (!birthDateStr) return 'Inconnu';
+    function calculateAge(birth_dateStr: string | null, death_dateStr: string | null): string {
+        if (!birth_dateStr) return 'Inconnu';
         try {
-            const birthDate = new Date(birthDateStr);
-            const endDate = deathDateStr ? new Date(deathDateStr) : new Date();
-            let age = endDate.getFullYear() - birthDate.getFullYear();
-            const monthDiff = endDate.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && endDate.getDate() < birthDate.getDate())) {
+            const birth_date = new Date(birth_dateStr);
+            const endDate = death_dateStr ? new Date(death_dateStr) : new Date();
+            let age = endDate.getFullYear() - birth_date.getFullYear();
+            const monthDiff = endDate.getMonth() - birth_date.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && endDate.getDate() < birth_date.getDate())) {
                 age--;
             }
             return age.toString();
@@ -147,10 +150,10 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
     const renderMemberCard = (member: Member, relation: string) => (
         <div key={member.id} className="flex items-center bg-gray-50 rounded-lg border border-gray-100 p-3 hover:bg-gray-100 transition-colors">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 mr-3">
-                {member.photoUrl ? (
+                {member.photo ? (
                     <img
-                        src={member.photoUrl}
-                        alt={`${member.firstName}`}
+                        src={member.photo}
+                        alt={`${member.first_name}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                             // Fallback pour les images qui ne chargent pas
@@ -161,19 +164,20 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-400 font-medium">
-                        {member.firstName ? member.firstName.charAt(0) : ''}
-                        {member.lastName ? member.lastName.charAt(0) : ''}
+                        {member.first_name ? member.first_name.charAt(0) : ''}
+                        {member.last_name ? member.last_name.charAt(0) : ''}
                     </div>
                 )}
             </div>
             <div>
-                <div className="font-medium">{member.firstName} {member.lastName}</div>
+                <div className="font-medium">{member.first_name} {member.last_name}</div>
                 <div className="text-xs text-gray-500">{relation}</div>
             </div>
         </div>
     );
 
     return (
+        <>
         <AnimatePresence>
             <motion.div
                 className="fixed inset-0 z-50 flex items-center justify-center"
@@ -199,9 +203,9 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                         <div className="absolute -bottom-12 left-8">
                             <div className="w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white">
-                                {selectedMember.photoUrl ? (
+                                {selectedMember.photo_url ? (
                                     <img
-                                        src={selectedMember.photoUrl}
+                                        src={selectedMember.photo_url}
                                         alt={fullName}
                                         className="w-full h-full object-cover"
                                         onError={(e) => {
@@ -214,8 +218,8 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                                 ) : (
                                     <div
                                         className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 font-medium text-2xl">
-                                        {selectedMember.firstName ? selectedMember.firstName.charAt(0) : ''}
-                                        {selectedMember.lastName ? selectedMember.lastName.charAt(0) : ''}
+                                        {selectedMember.first_name ? selectedMember.first_name.charAt(0) : ''}
+                                        {selectedMember.last_name ? selectedMember.last_name.charAt(0) : ''}
                                     </div>
                                 )}
                             </div>
@@ -223,10 +227,10 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                         <div className="absolute bottom-4 left-36 right-4 text-white">
                             <h2 className="text-2xl font-bold">{fullName}</h2>
                             <p className="text-sm opacity-90">
-                                {selectedMember.birthDate && (
+                                {selectedMember.birth_date && (
                                     <>
-                                        {birthDate}
-                                        {selectedMember.deathDate && <> — {deathDate}</>}
+                                        {birth_date}
+                                        {selectedMember.death_date && <> — {death_date}</>}
                                         {age && <> • {age} ans</>}
                                     </>
                                 )}
@@ -242,6 +246,8 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                                       d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
+
+                       
                     </div>
 
                     {/* Tabs navigation */}
@@ -280,18 +286,18 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                                     <div className="bg-gray-50 rounded-lg border border-gray-100 p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <div className="text-xs text-gray-500">Date de naissance</div>
-                                            <div className="font-medium">{birthDate}</div>
+                                            <div className="font-medium">{birth_date}</div>
                                         </div>
-                                        {selectedMember.birthPlace && (
+                                        {selectedMember.birth_place && (
                                             <div>
                                                 <div className="text-xs text-gray-500">Lieu de naissance</div>
-                                                <div className="font-medium">{selectedMember.birthPlace}</div>
+                                                <div className="font-medium">{selectedMember.birth_place}</div>
                                             </div>
                                         )}
-                                        {selectedMember.deathDate && (
+                                        {selectedMember.death_date && (
                                             <div>
                                                 <div className="text-xs text-gray-500">Date de décès</div>
-                                                <div className="font-medium">{deathDate}</div>
+                                                <div className="font-medium">{death_date}</div>
                                             </div>
                                         )}
                                         {selectedMember.occupation && (
@@ -390,17 +396,34 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({
                             </div>
                         )}
                     </div>
-                    <div className="px-8 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                    <div className="px-8 py-4 bg-gray-50 border-t border-gray-100 flex justify-between">
+                    <button
+                            onClick={() => setIsEditModalOpen(true)}
+                            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                            title="Modifier"
+                            >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
                         <button
                             onClick={onClose}
                             className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
                         >
                             Fermer
                         </button>
+                        
                     </div>
                 </motion.div>
             </motion.div>
         </AnimatePresence>
+        <EditMemberForm
+            isOpen={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            onSuccess={onClose} // Si vous voulez fermer le modal de détails après modification
+            member={selectedMember}
+            />
+        </>
     );
 };
 

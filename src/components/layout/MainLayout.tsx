@@ -80,7 +80,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                                     </div>
                                     <div className="flex space-x-2">
                                         <Link
-                                            to="/families"
+                                            to="/app/families"
                                             className="px-4 py-2 bg-white text-amber-700 border border-amber-300 rounded-lg text-sm font-medium hover:bg-amber-100 transition-colors"
                                         >
                                             Sélectionner

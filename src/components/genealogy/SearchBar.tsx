@@ -124,23 +124,23 @@ const SearchBar = () => {
                                     className="w-full px-4 py-3 flex items-center text-left rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                                 >
                                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                                        {member.photoUrl ? (
-                                            <img src={member.photoUrl} alt={member.firstName} className="w-full h-full object-cover" />
+                                        {member.photo ? (
+                                            <img src={member.photo} alt={member.first_name} className="w-full h-full object-cover" />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center bg-gray-300 text-gray-600">
-                                                {member.firstName.charAt(0)}{member.lastName.charAt(0)}
+                                                {member.first_name.charAt(0)}{member.last_name.charAt(0)}
                                             </div>
                                         )}
                                     </div>
                                     <div className="ml-4 flex-grow">
-                                        <div className="font-medium text-gray-800">{member.firstName} {member.lastName}</div>
+                                        <div className="font-medium text-gray-800">{member.first_name} {member.last_name}</div>
                                         <div className="text-xs text-gray-500 flex items-center">
-                                            {member.birthDate && (
+                                            {member.birth_date && (
                                                 <span className="mr-2">
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                     </svg>
-                                                    {new Date(member.birthDate).getFullYear()}
+                                                    {new Date(member.birth_date).getFullYear()}
                                                 </span>
                                             )}
                                             {member.occupation && (

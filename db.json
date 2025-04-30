@@ -5,7 +5,7 @@
       "name": "Famille Dupont",
       "description": "Famille parisienne originaire du Nord de la France",
       "createdAt": "2025-01-15T10:30:00Z",
-      "updatedAt": "2025-04-10T14:22:00Z",
+      "updated_at": "2025-04-10T14:22:00Z",
       "isPublic": true,
       "ownerId": 1
     },
@@ -14,7 +14,7 @@
       "name": "Famille Martin",
       "description": "Famille originaire de Lyon avec des racines italiennes",
       "createdAt": "2025-02-20T08:15:00Z",
-      "updatedAt": "2025-03-05T11:40:00Z",
+      "updated_at": "2025-03-05T11:40:00Z",
       "isPublic": true,
       "ownerId": 2
     }
@@ -22,7 +22,7 @@
   "members": [
     {
       "id": "1",
-      "familyId": 1,
+      "family": 1,
       "firstName": "Jean",
       "lastName": "Dupont",
       "birthDate": "1920-05-15",
@@ -35,7 +35,7 @@
     },
     {
       "id": "2",
-      "familyId": 1,
+      "family": 1,
       "firstName": "Marie",
       "lastName": "Martin",
       "birthDate": "1925-08-22",
@@ -48,7 +48,7 @@
     },
     {
       "id": "3",
-      "familyId": 1,
+      "family": 1,
       "firstName": "Pierre",
       "lastName": "Dupont",
       "birthDate": "1950-07-30",
@@ -61,7 +61,7 @@
     },
     {
       "id": "4",
-      "familyId": 1,
+      "family": 1,
       "firstName": "Sophie",
       "lastName": "Lambert",
       "birthDate": "1955-02-14",
@@ -74,20 +74,20 @@
     },
     {
       "id": "5",
-      "familyId": 1,
+      "family": 1,
       "firstName": "Thomas",
       "lastName": "Dupont",
       "birthDate": "1980-11-05",
       "birthPlace": "Lyon, France",
       "deathDate": "",
       "gender": "male",
-      "occupation": "Avocat",
+      "occupation": "Avocatooo",
       "bio": "Spécialisé en droit des affaires. Marié avec deux enfants.",
       "photoUrl": "https://randomuser.me/api/portraits/men/3.jpg"
     },
     {
       "id": "6",
-      "familyId": 2,
+      "family": 2,
       "firstName": "Lucie",
       "lastName": "Martin",
       "birthDate": "1978-03-12",
@@ -100,7 +100,7 @@
     },
     {
       "id": "7",
-      "familyId": 2,
+      "family": 2,
       "firstName": "Marc",
       "lastName": "Martin",
       "birthDate": "1945-09-28",
@@ -113,7 +113,7 @@
     },
     {
       "id": "6674",
-      "familyId": "1",
+      "family": "1",
       "firstName": "foxette",
       "lastName": "",
       "birthDate": "2003-04-02",
@@ -125,7 +125,7 @@
     },
     {
       "id": "43e3",
-      "familyId": "1",
+      "family": "1",
       "firstName": "FOX",
       "lastName": "Tiger",
       "birthDate": "2003-06-09",
@@ -137,7 +137,7 @@
     },
     {
       "id": "2982",
-      "familyId": "1",
+      "family": "1",
       "firstName": "FOX2",
       "lastName": "",
       "birthDate": "",
@@ -149,7 +149,7 @@
     },
     {
       "id": "db6c",
-      "familyId": "1",
+      "family": "1",
       "firstName": "jj",
       "lastName": "",
       "birthDate": "",
@@ -160,8 +160,8 @@
       "photoUrl": "https://randomuser.me/api/portraits/lego/1.jpg"
     },
     {
-      "id": "5dea",
-      "familyId": "1",
+      "id": "2986",
+      "family": "1",
       "firstName": "FOXer",
       "lastName": "Tiger",
       "birthDate": "2023-01-31",
@@ -175,88 +175,88 @@
   "relations": [
     {
       "id": "1",
-      "sourceId": 1,
-      "targetId": 2,
+      "source": 1,
+      "target": 2,
       "type": "spouse",
       "startDate": "1945-06-12",
       "endDate": "2005-11-20"
     },
     {
       "id": "2",
-      "sourceId": 1,
-      "targetId": 3,
+      "source": 1,
+      "target": 3,
       "type": "parent",
       "description": "Jean est parent de Pierre"
     },
     {
       "id": "3",
-      "sourceId": 2,
-      "targetId": 3,
+      "source": 2,
+      "target": 3,
       "type": "parent",
       "description": "Marie est parent de Pierre"
     },
     {
       "id": "4",
-      "sourceId": 3,
-      "targetId": 4,
+      "source": 3,
+      "target": 4,
       "type": "spouse",
       "startDate": "1978-09-15",
       "description": "Pierre est marié à Sophie"
     },
     {
       "id": "5",
-      "sourceId": 3,
-      "targetId": 5,
+      "source": 3,
+      "target": 5,
       "type": "parent",
       "description": "Pierre est parent de Thomas"
     },
     {
       "id": "6",
-      "sourceId": 4,
-      "targetId": 5,
+      "source": 4,
+      "target": 5,
       "type": "parent",
       "description": "Sophie est parent de Thomas"
     },
     {
       "id": "7",
-      "sourceId": 7,
-      "targetId": 6,
+      "source": 7,
+      "target": 6,
       "type": "parent",
       "description": "Marc est parent de Lucie"
     },
     {
       "id": "b0ba",
-      "familyId": "1",
-      "sourceId": 1,
-      "targetId": "2982",
+      "family": "1",
+      "source": 1,
+      "target": "2982",
       "type": "parent"
     },
     {
       "id": "78e6",
-      "familyId": "1",
-      "sourceId": 1,
-      "targetId": "db6c",
+      "family": "1",
+      "source": 1,
+      "target": "db6c",
       "type": "parent"
     },
     {
       "id": "31cc",
-      "familyId": "1",
-      "sourceId": 1,
-      "targetId": "5dea",
+      "family": "1",
+      "source": 1,
+      "target": "5dea",
       "type": "parent"
     },
     {
       "id": "3c3e",
-      "familyId": "1",
-      "sourceId": 4,
-      "targetId": "5dea",
+      "family": "1",
+      "source": 4,
+      "target": "5dea",
       "type": "parent"
     },
     {
       "id": "d8f8",
-      "familyId": "1",
-      "sourceId": "5dea",
-      "targetId": 43,
+      "family": "1",
+      "source": "5dea",
+      "target": 43,
       "type": "spouse"
     }
   ],

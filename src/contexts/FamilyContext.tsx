@@ -28,34 +28,25 @@ export const FamilyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [loadingMembers, setLoadingMembers] = useState<boolean>(false);
     const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
 
-
     // Charger les familles au démarrage
     useEffect(() => {
-        const loadFamilies = async () => {
+       // Dans la méthode loadFamilies de FamilyContext.tsx
+       const loadFamilies = async () => {
             setLoadingFamilies(true);
             try {
-                const publicFamilies = await familyService.getPublicFamilies();
-                setFamilies(publicFamilies);
-
-                // Si un utilisateur est connecté, ajouter ses familles privées
-                const userId = localStorage.getItem('userId');
-                if (userId) {
-                    const userFamilies = await familyService.getUserFamilies(parseInt(userId));
-                    // Filtrer pour éviter les doublons
-                    const newFamilies = userFamilies.filter(
-                        userFamily => !publicFamilies.some(pubFamily => pubFamily.id === userFamily.id)
-                    );
-                    setFamilies(prev => [...prev, ...newFamilies]);
-                }
-
-                // Sélectionner la première famille par défaut
-                if (publicFamilies.length > 0) {
-                    await selectFamily(publicFamilies[0].id);
-                }
+              const accessibleFamilies = await familyService.getAccessibleFamilies();
+              console.log('Families loaded:', accessibleFamilies);
+              setFamilies(accessibleFamilies);
+              
+              if (accessibleFamilies.length > 0) {
+                await selectFamily(accessibleFamilies[0].id);
+              } else {
+                console.log('No families available');
+              }
             } catch (error) {
-                console.error('Erreur lors du chargement des familles:', error);
+              console.error('Erreur lors du chargement des familles:', error);
             } finally {
-                setLoadingFamilies(false);
+              setLoadingFamilies(false);
             }
         };
 
@@ -66,12 +57,15 @@ export const FamilyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const selectFamily = async (familyId: number) => {
         setLoadingMembers(true);
         try {
-            const family = await familyService.getFamily(familyId);
-            setSelectedFamily(family);
+            // Changement ici : renamed variable to avoid conflict
+            const familyData = await familyService.getFamily(familyId);
+            setSelectedFamily(familyData);
 
+            // Changement ici : use familyId instead of family
             const familyMembers = await memberService.getFamilyMembers(familyId);
             setMembers(familyMembers);
 
+            // Changement ici : use familyId instead of family
             const familyRelations = await relationService.getFamilyRelations(familyId);
             setRelations(familyRelations);
         } catch (error) {
@@ -93,19 +87,23 @@ export const FamilyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (!selectedFamily) return [];
     
         try {
-          // Avec un backend, on ferait un appel à l'API
-          // mais pour le dev front, on filtre localement
-          const q = query.toLowerCase().trim();
-          return members.filter(member => 
-            member.firstName.toLowerCase().includes(q) || 
-            member.lastName.toLowerCase().includes(q) || 
-            (member.occupation && member.occupation.toLowerCase().includes(q))
-          );
+            if (query.trim() === '') return [];
+            
+            // Utiliser memberService.searchMembers si une API de recherche est disponible
+            // return await memberService.searchMembers(selectedFamily.id, query);
+            
+            // Filtrer localement pour l'instant
+            const q = query.toLowerCase().trim();
+            return members.filter(member => 
+                (member.first_name && member.first_name.toLowerCase().includes(q)) || 
+                (member.last_name && member.last_name.toLowerCase().includes(q)) || 
+                (member.occupation && member.occupation.toLowerCase().includes(q))
+            );
         } catch (error) {
-          console.error('Erreur lors de la recherche de membres:', error);
-          return [];
+            console.error('Erreur lors de la recherche de membres:', error);
+            return [];
         }
-      };
+    };
 
     const value = {
         families,
