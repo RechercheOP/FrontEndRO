@@ -657,7 +657,7 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                     </div>
 
                                     {/* Section Parents */}
-                                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                                    <div className="bg-white border min-h-50 border-gray-200 rounded-lg overflow-auto">
                                         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
                                             <h3 className="font-medium text-gray-800">Parents</h3>
                                         </div>
@@ -1039,7 +1039,7 @@ const AddMemberForm: React.FC<AddMemberFormProps> = ({
                                     </div>
 
                                     {/* Section Conjoint */}
-                                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                                    <div className="bg-white border min-h-30  border-gray-200 rounded-lg overflow-auto">
                                         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
                                             <h3 className="font-medium text-gray-800">Conjoint(e)</h3>
                                         </div>
