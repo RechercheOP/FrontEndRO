@@ -13,6 +13,7 @@ const HomePage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const { members, relations, loadingMembers, selectedFamily } = useFamily();
 
+
     // Simuler un temps de chargement pour une meilleure expérience utilisateur
     useEffect(() => {
         if (!loadingMembers) {

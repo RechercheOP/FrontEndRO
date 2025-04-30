@@ -13,6 +13,8 @@ interface FamilyContextType {
     selectFamily: (familyId: number) => Promise<void>;
     refreshFamilyData: () => Promise<void>;
     searchMembers: (query: string) => Promise<Member[]>;
+    selectedMemberId: number | null;
+    setSelectedMemberId: (id: number | null) => void;
 }
 
 const FamilyContext = createContext<FamilyContextType | undefined>(undefined);
@@ -24,6 +26,8 @@ export const FamilyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [relations, setRelations] = useState<Relation[]>([]);
     const [loadingFamilies, setLoadingFamilies] = useState<boolean>(false);
     const [loadingMembers, setLoadingMembers] = useState<boolean>(false);
+    const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
+
 
     // Charger les familles au démarrage
     useEffect(() => {
@@ -87,14 +91,21 @@ export const FamilyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Rechercher des membres dans la famille sélectionnée
     const searchMembers = async (query: string): Promise<Member[]> => {
         if (!selectedFamily) return [];
-
+    
         try {
-            return await memberService.searchMembers(selectedFamily.id, query);
+          // Avec un backend, on ferait un appel à l'API
+          // mais pour le dev front, on filtre localement
+          const q = query.toLowerCase().trim();
+          return members.filter(member => 
+            member.firstName.toLowerCase().includes(q) || 
+            member.lastName.toLowerCase().includes(q) || 
+            (member.occupation && member.occupation.toLowerCase().includes(q))
+          );
         } catch (error) {
-            console.error('Erreur lors de la recherche de membres:', error);
-            return [];
+          console.error('Erreur lors de la recherche de membres:', error);
+          return [];
         }
-    };
+      };
 
     const value = {
         families,
@@ -105,7 +116,9 @@ export const FamilyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         loadingMembers,
         selectFamily,
         refreshFamilyData,
-        searchMembers
+        searchMembers,
+        selectedMemberId,
+        setSelectedMemberId,
     };
 
     return <FamilyContext.Provider value={value}>{children}</FamilyContext.Provider>;

@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFamily } from '../../contexts/FamilyContext';
+import { Member } from '../../services/memberService';
 
 const SearchBar = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearching, setIsSearching] = useState(false);
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<Member[]>([]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
-    const { searchMembers } = useFamily();
+    const { searchMembers, setSelectedMemberId } = useFamily();
 
     // Gérer la fermeture du dropdown quand on clique ailleurs
     useEffect(() => {
@@ -58,8 +59,11 @@ const SearchBar = () => {
         setIsDropdownOpen(false);
     };
 
-    const selectResult = (member: any) => {
-        // Ici, vous pourriez implémenter la logique pour sélectionner un membre dans l'arbre
+    const selectResult = (member: Member) => {
+        // Ici nous ajoutons la mise à jour du membre sélectionné
+        if (setSelectedMemberId) {
+            setSelectedMemberId(Number(member.id));
+        }
         console.log('Membre sélectionné:', member);
         setIsDropdownOpen(false);
     };
@@ -112,11 +116,12 @@ const SearchBar = () => {
                     >
                         <div className="max-h-96 overflow-y-auto p-1">
                             {searchResults.map((member) => (
-                                <motion.button
+                                // Utiliser un div au lieu d'un button pour le conteneur principal
+                                <motion.div
                                     key={member.id}
                                     whileHover={{ backgroundColor: '#f9fafb' }}
                                     onClick={() => selectResult(member)}
-                                    className="w-full px-4 py-3 flex items-center text-left rounded-lg hover:bg-gray-50 transition-colors"
+                                    className="w-full px-4 py-3 flex items-center text-left rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                                 >
                                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
                                         {member.photoUrl ? (
@@ -132,30 +137,30 @@ const SearchBar = () => {
                                         <div className="text-xs text-gray-500 flex items-center">
                                             {member.birthDate && (
                                                 <span className="mr-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
                                                     {new Date(member.birthDate).getFullYear()}
-                        </span>
+                                                </span>
                                             )}
                                             {member.occupation && (
                                                 <span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                          </svg>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                    </svg>
                                                     {member.occupation}
-                        </span>
+                                                </span>
                                             )}
                                         </div>
                                     </div>
                                     <div className="ml-2">
-                                        <button className="p-1 rounded-full hover:bg-black hover:text-white transition-all">
+                                        <div className="p-1 rounded-full hover:bg-black hover:text-white transition-all">
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                             </svg>
-                                        </button>
+                                        </div>
                                     </div>
-                                </motion.button>
+                                </motion.div>
                             ))}
                         </div>
                     </motion.div>

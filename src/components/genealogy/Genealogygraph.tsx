@@ -3,6 +3,7 @@ import { Network, DataSet, Node, Edge, Options } from 'vis-network/standalone';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Member } from '../../services/memberService';
 import { Relation } from '../../services/relationService';
+import { useFamily } from '../../contexts/FamilyContext';
 
 interface FamilyTreeProps {
     members: Member[];
@@ -26,6 +27,8 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
     const [nodes, setNodes] = useState<DataSet<Node> | null>(null);
     const [edges, setEdges] = useState<DataSet<Edge> | null>(null);
     const [showControls, setShowControls] = useState(true);
+    const { selectedMemberId } = useFamily();
+
 
     // Écouteur d'événement pour redimensionnement
     useEffect(() => {
@@ -197,17 +200,19 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
                     x: 0,
                     y: 2
                 },
-                borderWidthSelected: 4,
+                borderWidthSelected: 5,
                 color: {
                     border: member.gender === 'male' ? '#3182CE' :
                         member.gender === 'female' ? '#D53F8C' : '#718096',
                     background: '#FFFFFF',
                     highlight: {
-                        border: '#4A5568',
+                        border: member.gender === 'male' ? '#3182CE' :
+                        member.gender === 'female' ? '#D53F8C' : '#718096',
                         background: '#F7FAFC'
                     },
                     hover: {
-                        border: '#2D3748',
+                        border: member.gender === 'male' ? '#4AA8FFFF' :
+                        member.gender === 'female' ? '#F968B3FF' : '#718096',
                         background: '#EDF2F7'
                     }
                 }
@@ -221,7 +226,7 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
                 shape: 'dot',
                 size: 20,
                 level: levels.get(union.id),
-                color: { background: '#fff', border: '#aaa' },
+                color: { background: '#fff', border: 'pink' },
                 borderWidth: 1,
                 font: { color: '#aaa', size: 8 },
                 physics: false,
@@ -243,7 +248,8 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
                 from: parent1,
                 to: union.id,
                 width: 1.5,
-                color: { color: '#bbb' },
+                selectionWidth:3,
+                color: { color: 'pink' },
                 dashes: false,
                 arrows: { to: { enabled: true, type: 'arrow' } },
                 smooth: { enabled: true, type: 'curvedCW', roundness: 0.2 }
@@ -253,7 +259,8 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
                 from: parent2,
                 to: union.id,
                 width: 1.5,
-                color: { color: '#bbb' },
+                selectionWidth:3,
+                color: { color: 'pink' },
                 dashes: false,
                 arrows: { to: { enabled: true, type: 'arrow' } },
                 smooth: { enabled: true, type: 'curvedCCW', roundness: 0.2 }
@@ -268,10 +275,10 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
                             from: union.id,
                             to: childId,
                             width: 2,
-                            color: { color: '#59ba00' },
+                            color: { color: '#59ba00',highlight : '#59ba00', },
                             label: '',
                             arrows: { to: { enabled: true, type: 'arrow' } },
-                            smooth: { enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.6 }
+                            smooth: { enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.0 }
                         });
                     }
                 }
@@ -520,25 +527,28 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
                 nodes.update({
                     id: currentId,
                     borderWidth: 1,
-                    color: { background: '#fff', border: '#aaa' },
-                    font: { color: '#aaa', size: 8 }
+                    color: { background: '#fff', border: '#D53F8C' },
+                    font: { color: '#aaa', size: 8 },
                 });
             } else {
                 // Nœud membre
                 const member = members.find(m => Number(m.id) === Number(currentId));
                 nodes.update({
                     id: currentId,
-                    borderWidth: 2,
+                    borderWidth: 3,
+                    borderWidthSelected:10,
                     color: {
                         border: member?.gender === 'male' ? '#3182CE' :
                             member?.gender === 'female' ? '#D53F8C' : '#718096',
                         background: '#FFFFFF',
                         highlight: {
-                            border: '#4A5568',
-                            background: '#F7FAFC'
+                            border: member?.gender === 'male' ? '#07CDF0FF' :
+                            member?.gender === 'female' ? '#FF0B89FF' : '#718096',
+                            background: '#F7FAFC',
                         },
                         hover: {
-                            border: '#2D3748',
+                            border: member?.gender === 'male' ? '#07CDF0FF' :
+                            member?.gender === 'female' ? '#FF0B89FF' : '#718096',
                             background: '#EDF2F7'
                         }
                     },
@@ -554,27 +564,28 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
         const allEdges = edges.get();
         allEdges.forEach(edge => {
             const edgeId = String(edge.id);
+            
 
             if (edgeId.startsWith('P1U-') || edgeId.startsWith('P2U-')) {
                 // Arête parent → union
                 edges.update({
                     id: edge.id,
-                    width: 1.5,
-                    color: { color: '#bbb' }
+                    width: 3,
+                    color: { color: '#E903B7FF' ,highlight: '#E903B7FF' ,hover:'#E903B7FF'}
                 });
             } else if (edgeId.startsWith('U')) {
                 // Arête union → enfant
                 edges.update({
                     id: edge.id,
                     width: 2,
-                    color: { color: '#59ba00' }
+                    color: { color: '#59ba00' , highlight:'#59ba00' , hover:'#59ba00' }
                 });
             } else if (edgeId.startsWith('P')) {
                 // Arête parent → enfant (cas d'un seul parent)
                 edges.update({
                     id: edge.id,
                     width: 2,
-                    color: { color: '#59ba00' }
+                    color: { color: '#59ba00', highlight:'#59ba00' , hover:'#59ba00' }
                 });
             } else if (edgeId.startsWith('S')) {
                 // Arête conjoint
@@ -650,6 +661,7 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
             nodes: {
                 borderWidth: 2,
                 size: 40,
+                borderWidthSelected:4,
                 color: {
                     border: '#718096',
                     background: '#ffffff',
@@ -658,8 +670,10 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
                         background: '#f3f3f3'
                     },
                     hover: {
-                        border: '#444444',
-                        background: '#f9f9f9'
+                        border: '#FFD500FF',
+                        background: '#f9f9f9',
+                        
+                        
                     }
                 },
                 font: {
@@ -680,7 +694,7 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
                 width: 1.5,
                 selectionWidth:3,
                 color: {
-                    color: '#000000',
+                    color: '#FFC400FF',
                     highlight: '#333333',
                     hover: '#555555'
                 },
@@ -736,6 +750,61 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
         };
     }, [members, relations, onSelectMember, buildGraphData, viewMode]);
 
+
+    // Effet pour répondre aux changements de selectedMemberId
+    useEffect(() => {
+    // Ne rien faire si le réseau n'est pas initialisé ou pas de membre sélectionné
+    if (!network || selectedMemberId === null) return;
+    
+    // Log de débogage
+    console.log('Tentative de sélection du membre:', selectedMemberId, 'réseau:', !!network);
+    
+    // Attendre un peu que le réseau soit complètement initialisé
+    // Cela permet d'éviter les problèmes de timing
+    setTimeout(() => {
+        try {
+            // Vérifier que le réseau est toujours disponible
+            if (!network) {
+                console.error('Le réseau est devenu indisponible');
+                return;
+            }
+            
+            // Vérifier si le nœud existe dans le réseau
+            // const allNodes = network.getNodeIds();
+            // const nodeExists = allNodes.includes(selectedMemberId) || 
+            //                   allNodes.includes(String(selectedMemberId));
+            
+            // if (!nodeExists) {
+            //     console.warn(`Nœud ${selectedMemberId} introuvable dans le réseau`);
+            //     return;
+            // }
+            
+            // Sélectionner le nœud en toute sécurité
+            network.selectNodes([selectedMemberId]);
+            
+            // Focus sur le nœud
+            network.focus(selectedMemberId, {
+                scale: 1.2,
+                animation: {
+                    duration: 1000,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+            
+            // Mettre à jour l'état local
+            setSelectedNode(selectedMemberId);
+            
+            // Activer la mise en surbrillance des ancêtres
+            setHighlightMode('ancestors');
+            
+        } catch (error) {
+            console.error('Erreur lors de la sélection du nœud:', error);
+        }
+    }, 1000); // Attendre 500ms pour être sûr que le réseau est prêt
+    
+    }, [selectedMemberId, network]);
+    
+
     // Gestion du mode plein écran
     const toggleFullscreen = () => {
         if (!isFullscreen) {
@@ -765,6 +834,8 @@ const FamilyTree = ({ members, relations, onSelectMember }: FamilyTreeProps) => 
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
     }, []);
+
+
 
     // Rendu de la minimap (à implémenter complètement)
     const renderMiniMap = () => {
